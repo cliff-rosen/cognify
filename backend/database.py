@@ -1,7 +1,8 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from config import settings
 from models import Base
+import os
 
 # Create engine with AWS RDS connection
 engine = create_engine(
