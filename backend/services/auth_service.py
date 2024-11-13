@@ -5,10 +5,14 @@ from passlib.context import CryptContext
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from models import User
-from schemas import UserCreate, TokenData
+from schemas import UserCreate, Token
 from config import settings
+import logging
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+SECRET_KEY = settings.JWT_SECRET_KEY
+ALGORITHM = "HS256"
+logger = logging.getLogger(__name__)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
@@ -17,7 +21,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     else:
         expire = datetime.utcnow() + timedelta(minutes=15)
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm="HS256")
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -43,19 +47,48 @@ async def create_user(db: Session, user: UserCreate):
     db.refresh(db_user)
     return db_user
 
-async def authenticate_user(db: Session, form_data):
-    user = db.query(User).filter(User.email == form_data.username).first()
-    if not user or not verify_password(form_data.password, user.password):
+async def login_user(db: Session, email: str, password: str) -> Token:
+    """
+    Authenticate user and return JWT token
+    """
+    user = db.query(User).filter(User.email == email).first()
+    if not user or not pwd_context.verify(password, user.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
+            detail="Incorrect email or password"
         )
     
-    # Create access token
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.email},
-        expires_delta=access_token_expires
-    )
-    return {"access_token": access_token, "token_type": "bearer"}
+    # Include both email and user_id in the token
+    access_token = create_access_token(data={
+        "sub": user.email,
+        "user_id": user.user_id
+    })
+    return Token(access_token=access_token, token_type="bearer")
+
+async def validate_token(token: str, db: Session):
+    try:
+        logger.info(f"Validating token: {token[:10]}...")
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        logger.info(f"Token decoded, email: {email}")
+        
+        if email is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token payload"
+            )
+        
+        user = db.query(User).filter(User.email == email).first()
+        if user is None:
+            raise HTTPException(
+                status_code=401,
+                detail="User not found"
+            )
+            
+        return user
+    except jwt.JWTError as e:
+        logger.error(f"JWT validation error: {str(e)}")
+        raise HTTPException(
+            status_code=401, 
+            detail=f"Invalid token: {str(e)}"
+        )

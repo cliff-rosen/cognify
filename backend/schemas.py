@@ -31,6 +31,7 @@ class TopicCreate(TopicBase):
 class TopicResponse(TopicBase):
     topic_id: int
     user_id: int
+    topic_name: str
     creation_date: datetime
 
     class Config:
