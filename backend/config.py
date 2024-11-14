@@ -14,7 +14,7 @@ class Settings(BaseSettings):
 
     # JWT Settings
     JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY")
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 
     @property
     def DATABASE_URL(self) -> str:
