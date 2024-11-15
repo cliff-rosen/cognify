@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from typing import List
 from database import get_db
-from schemas import TopicResponse, TopicCreate
+from schemas import TopicResponse, TopicCreate, TopicUpdate
 from dependencies import CurrentUser
 from models import Topic
 from services import topic_service, auth_service
@@ -55,37 +55,55 @@ async def get_topics(
         422: {
             "description": "Validation error"
         }
-    },
-    openapi_extra={
-        "security": [{"bearerAuth": []}],
-        "requestBody": {
-            "content": {
-                "application/json": {
-                    "schema": {
-                        "type": "object",
-                        "required": ["topic_name"],
-                        "properties": {
-                            "topic_name": {
-                                "type": "string",
-                                "minLength": 1,
-                                "maxLength": 255,
-                                "description": "The name of the topic",
-                                "example": "Machine Learning Fundamentals"
-                            }
-                        }
-                    }
-                }
-            },
-            "required": True,
-            "description": "Topic details"
-        }
     }
 )
 async def create_topic(
     topic: TopicCreate,
-    current_user: CurrentUser,
+    current_user = Depends(auth_service.validate_token),
     db: Session = Depends(get_db)
 ):
     logger.info("create_topic endpoint called")
 
     return await topic_service.create_topic(db, topic, current_user.user_id)    
+
+#update topic
+@router.patch(
+    "/{topic_id}",
+    response_model=TopicResponse,
+    summary="Update a topic",
+    responses={
+        200: {
+            "description": "Topic successfully updated",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "topic_id": 1,
+                        "user_id": 123,
+                        "topic_name": "Advanced Machine Learning",
+                        "creation_date": "2024-03-13T12:00:00Z"
+                    }
+                }
+            }
+        },
+        401: {"description": "Not authenticated"},
+        403: {"description": "Topic belongs to another user"},
+        404: {"description": "Topic not found"},
+        422: {"description": "Validation error"}
+    }
+)
+async def update_topic(
+    topic_id: int,
+    topic: TopicUpdate,
+    current_user = Depends(auth_service.validate_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Update a topic for the authenticated user
+    
+    Parameters:
+    - **topic_id**: ID of the topic to update
+    - **topic_name**: New name for the topic
+    """
+    logger.info(f"update_topic endpoint called for topic_id: {topic_id}")
+    return await topic_service.update_topic(db, topic_id, topic, current_user.user_id)
+

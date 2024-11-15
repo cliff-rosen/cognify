@@ -81,11 +81,8 @@ async def startup_event():
     logger.info("Application starting up...")
     init_db()
     logger.info("Database initialized")
-    logger.info(f"Settings object: {settings}")
-    logger.info(f"ACCESS_TOKEN_EXPIRE_MINUTES value: {settings.ACCESS_TOKEN_EXPIRE_MINUTES}")
-    logger.info(f"Minutes calculation: {60 * 24 * 7}")
-
-
+    #logger.info(f"Settings object: {settings}")
+    #logger.info(f"ACCESS_TOKEN_EXPIRE_MINUTES value: {settings.ACCESS_TOKEN_EXPIRE_MINUTES}")
 
 # Health and test endpoints
 @app.get("/health")
