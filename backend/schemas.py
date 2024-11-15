@@ -70,29 +70,29 @@ class TopicList(BaseModel):
 # Entry Schemas
 class EntryCreate(BaseModel):
     """Schema for creating a new entry"""
-    topic_id: Optional[int] = Field(
-        default=None,
-        description="ID of the topic this entry belongs to",
-        example=1
-    )
     content: str = Field(
         min_length=1,
         description="The content of the entry",
         example="Today I learned about neural networks..."
     )
-
-class EntryUpdate(BaseModel):
-    """Schema for updating an entry (PATCH)"""
     topic_id: Optional[int] = Field(
         default=None,
         description="ID of the topic this entry belongs to",
         example=1
     )
+
+class EntryUpdate(BaseModel):
+    """Schema for updating an entry (PATCH)"""
     content: Optional[str] = Field(
         default=None,
         min_length=1,
         description="Updated content of the entry",
         example="Updated insights about neural networks..."
+    )
+    topic_id: Optional[int] = Field(
+        default=None,
+        description="ID of the topic this entry belongs to",
+        example=1
     )
 
 class EntryResponse(BaseModel):

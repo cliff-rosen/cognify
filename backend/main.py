@@ -61,12 +61,12 @@ app.include_router(
     tags=["topics"],
     responses={401: {"description": "Not authenticated"}}
 )
-# app.include_router(
-#     entries.router,
-#     prefix="/api/entries",
-#     tags=["entries"],
-#     responses={401: {"description": "Not authenticated"}}
-# )
+app.include_router(
+    entries.router,
+    prefix="/api/entries",
+    tags=["entries"],
+    responses={401: {"description": "Not authenticated"}}
+)
 # app.include_router(
 #     chat.router,
 #     prefix="/api/chat",
