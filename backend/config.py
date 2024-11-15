@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Settings(BaseSettings):
+    SETTING_VERSION: str = "0.0.1"
+
     # AWS RDS Database settings
     DB_HOST: str = os.getenv("DB_HOST")
     DB_PORT: str = os.getenv("DB_PORT", "3306")

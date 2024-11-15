@@ -2,18 +2,25 @@ from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, Depends, Security
+from fastapi.security import HTTPBearer
+from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from models import User
 from schemas import UserCreate, Token
 from config import settings
+from database import get_db
 import logging
+import time
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 SECRET_KEY = settings.JWT_SECRET_KEY
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 logger = logging.getLogger(__name__)
+
+# Define OAuth2 scheme for token handling
+security = HTTPBearer()
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
@@ -66,10 +73,20 @@ async def login_user(db: Session, email: str, password: str) -> Token:
     })
     return Token(access_token=access_token, token_type="bearer")
 
-async def validate_token(token: str, db: Session):
+async def validate_token(
+    credentials: HTTPBearer = Depends(security),
+    db: Session = Depends(get_db)
+):
+    """Validate JWT token and return user"""
+    logger.info("validate_token called")
     try:
-        logger.info(f"Validating token: {token[:10]}...")
+        logger.info("getting token from credentials")
+        token = credentials.credentials
+        logger.info(f"Token: {token[:10]}...")
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        exp_timestamp = payload.get('exp')
+        time_until_expiry = exp_timestamp - int(time.time())
+        logger.info(f"Token expires in {time_until_expiry} seconds")        
         email: str = payload.get("sub")
         logger.info(f"Token decoded, email: {email}")
         
@@ -87,7 +104,8 @@ async def validate_token(token: str, db: Session):
             )
             
         return user
-    except jwt.JWTError as e:
+    except Exception as e:
+        logger.info("############## JWT validation error ##############")
         logger.error(f"JWT validation error: {str(e)}")
         raise HTTPException(
             status_code=401, 

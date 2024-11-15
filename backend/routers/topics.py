@@ -5,7 +5,7 @@ from database import get_db
 from schemas import TopicResponse, TopicCreate
 from dependencies import CurrentUser
 from models import Topic
-from services import topic_service
+from services import topic_service, auth_service
 import logging
 
 logger = logging.getLogger(__name__)
@@ -19,24 +19,20 @@ router = APIRouter()
     responses={
         200: {
             "description": "List of topics successfully retrieved",
-            "model": List[TopicResponse]
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "array",
+                        "items": {"$ref": "#/components/schemas/TopicResponse"}
+                    }
+                }
+            }
         },
-        401: {
-            "description": "Not authenticated"
-        },
-        422: {
-            "description": "Validation error"
-        },
-        500: {
-            "description": "Internal server error"
-        }
-    },
-    openapi_extra={
-        "security": [{"bearerAuth": []}]
+        401: {"description": "Not authenticated"}
     }
 )
 async def get_topics(
-    current_user: CurrentUser,
+    current_user = Depends(auth_service.validate_token),
     db: Session = Depends(get_db)
 ):
     """Get all topics for the authenticated user"""
