@@ -71,6 +71,13 @@ const CenterWorkspace: React.FC<CenterWorkspaceProps> = ({ selectedTopicId }) =>
 
     return (
         <div className="h-full flex flex-col">
+            {/* Navigation Header - Always visible */}
+            <div className="flex-none p-4 border-b border-gray-200 dark:border-gray-700">
+                <h2 className="text-lg font-semibold dark:text-white">
+                    {selectedTopicId ? 'Topic' : 'Dashboard'}
+                </h2>
+            </div>
+
             {!selectedTopicId ? (
                 // Dashboard View
                 <div className="flex-1 flex flex-col">
@@ -127,11 +134,8 @@ const CenterWorkspace: React.FC<CenterWorkspaceProps> = ({ selectedTopicId }) =>
             ) : (
                 // Topic View
                 <div className="flex-1 flex flex-col">
-                    {/* Topic Header */}
-                    <div className="flex-none p-6 border-b border-gray-200 dark:border-gray-700">
-                        <h2 className="text-2xl font-bold dark:text-white mb-4">
-                            {selectedTopic?.topic_name || 'Topic'}
-                        </h2>
+                    {/* Topic Tabs */}
+                    <div className="flex-none px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                         <div className="flex space-x-4">
                             <button
                                 onClick={() => setActiveTab('entries')}

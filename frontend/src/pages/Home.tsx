@@ -12,7 +12,7 @@ export default function Home() {
 
     if (!isAuthenticated) {
         return (
-            <div className="flex min-h-screen items-center justify-center dark:bg-gray-900">
+            <div className="flex h-full items-center justify-center dark:bg-gray-900">
                 <div className="text-center">
                     <h1 className="text-3xl font-bold dark:text-white">
                         Welcome to Cognify
@@ -23,16 +23,16 @@ export default function Home() {
     }
 
     return (
-        <div className="absolute inset-0 dark:bg-gray-900">
+        <div className="h-full flex flex-col dark:bg-gray-900">
             {/* Top Section */}
-            <div className="absolute top-0 left-0 right-0">
+            <div className="flex-none">
                 <TopBar />
             </div>
             
             {/* Main Content Area */}
-            <div className="absolute top-[73px] bottom-0 left-0 right-0 flex">
+            <div className="flex-1 flex h-[calc(100%-64px)]">
                 {/* Left Sidebar */}
-                <div className="w-64 border-r border-gray-200 dark:border-gray-700">
+                <div className="w-64 flex border-r border-gray-200 dark:border-gray-700">
                     <LeftSidebar 
                         onSelectTopic={setSelectedTopicId}
                         selectedTopicId={selectedTopicId}
@@ -40,12 +40,12 @@ export default function Home() {
                 </div>
                 
                 {/* Center Workspace */}
-                <div className="flex-1">
+                <div className="flex-1 flex">
                     <CenterWorkspace selectedTopicId={selectedTopicId} />
                 </div>
                 
                 {/* Right Sidebar */}
-                <div className="w-80 border-l border-gray-200 dark:border-gray-700">
+                <div className="w-80 flex border-l border-gray-200 dark:border-gray-700">
                     <RightSidebar />
                 </div>
             </div>

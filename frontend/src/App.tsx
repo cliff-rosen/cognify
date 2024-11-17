@@ -10,11 +10,17 @@ function App() {
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
-          <Navbar />
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/login" element={<Login />} />
-          </Routes>
+          <div className="h-screen flex flex-col bg-white dark:bg-gray-900">
+            <div className="flex-none">
+              <Navbar />
+            </div>
+            <div className="flex-1 h-[calc(100vh-64px)]">
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/login" element={<Login />} />
+              </Routes>
+            </div>
+          </div>
         </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>
