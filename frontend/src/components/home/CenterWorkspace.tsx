@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { topicsApi, Topic } from '../../lib/api/topicsApi'
 import { entriesApi, Entry } from '../../lib/api/entriesApi'
 
@@ -6,23 +6,29 @@ interface CenterWorkspaceProps {
     selectedTopicId: number | null;
 }
 
-const CenterWorkspace: React.FC<CenterWorkspaceProps> = ({ selectedTopicId }) => {
-    const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null)
-    const [entries, setEntries] = useState<Entry[]>([])
-    const [isLoading, setIsLoading] = useState(false)
-    const [error, setError] = useState<string | null>(null)
-    const [activeTab, setActiveTab] = useState<'entries' | 'summary' | 'notes'>('entries')
-    const [newEntry, setNewEntry] = useState('')
+export interface CenterWorkspaceHandle {
+    refreshEntries: () => void;
+}
 
-    useEffect(() => {
-        const fetchData = async () => {
+const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
+    ({ selectedTopicId }, ref) => {
+        const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null)
+        const [entries, setEntries] = useState<Entry[]>([])
+        const [isLoading, setIsLoading] = useState(false)
+        const [error, setError] = useState<string | null>(null)
+        const [activeTab, setActiveTab] = useState<'entries' | 'summary' | 'notes'>('entries')
+        const [newEntry, setNewEntry] = useState('')
+
+        const fetchEntries = async () => {
             try {
                 setIsLoading(true)
                 setError(null)
-                
-                const fetchedEntries = await entriesApi.getEntries(selectedTopicId || undefined)
+
+                const fetchedEntries = await entriesApi.getEntries(
+                    selectedTopicId ? { topic_id: selectedTopicId } : undefined
+                )
                 setEntries(fetchedEntries)
-                
+
                 if (!selectedTopicId) {
                     setSelectedTopic(null)
                 }
@@ -34,208 +40,207 @@ const CenterWorkspace: React.FC<CenterWorkspaceProps> = ({ selectedTopicId }) =>
             }
         }
 
-        fetchData()
-    }, [selectedTopicId])
+        useEffect(() => {
+            fetchEntries()
+        }, [selectedTopicId])
 
-    const handleAddEntry = async () => {
-        if (!newEntry.trim()) return
+        // Expose the refresh method to parent components
+        useImperativeHandle(ref, () => ({
+            refreshEntries: fetchEntries
+        }))
 
-        try {
-            const entry = await entriesApi.createEntry({
-                content: newEntry.trim(),
-                topic_id: selectedTopicId
-            })
-            setEntries([entry, ...entries])
-            setNewEntry('')
-        } catch (err) {
-            console.error('Error creating entry:', err)
-            // TODO: Show error notification
+        const handleAddEntry = async () => {
+            if (!newEntry.trim()) return
+
+            try {
+                const entry = await entriesApi.createEntry({
+                    content: newEntry.trim(),
+                    topic_id: selectedTopicId
+                })
+                setEntries([entry, ...entries])
+                setNewEntry('')
+            } catch (err) {
+                console.error('Error creating entry:', err)
+                // TODO: Show error notification
+            }
         }
-    }
 
-    if (isLoading) {
+        if (isLoading) {
+            return (
+                <div className="h-full flex items-center justify-center">
+                    <div className="text-gray-500 dark:text-gray-400">Loading...</div>
+                </div>
+            )
+        }
+
+        if (error) {
+            return (
+                <div className="h-full flex items-center justify-center">
+                    <div className="text-red-500">{error}</div>
+                </div>
+            )
+        }
+
         return (
-            <div className="h-full flex items-center justify-center">
-                <div className="text-gray-500 dark:text-gray-400">Loading...</div>
-            </div>
-        )
-    }
+            <div className="h-full flex flex-col">
+                {/* Navigation Header - Always visible */}
 
-    if (error) {
-        return (
-            <div className="h-full flex items-center justify-center">
-                <div className="text-red-500">{error}</div>
-            </div>
-        )
-    }
+                {!selectedTopicId ? (
+                    // Dashboard View
+                    <div className="flex-1 flex flex-col">
+                        <div className="flex-1 p-6 overflow-y-auto">
+                            <h2 className="text-2xl font-bold mb-6 dark:text-white">Dashboard</h2>
+                            <div className="space-y-4">
+                                <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+                                    <h3 className="text-lg font-semibold dark:text-white">Recent Entries</h3>
+                                    <div className="mt-4 space-y-4">
+                                        {entries.length === 0 ? (
+                                            <div className="text-gray-500 dark:text-gray-400">
+                                                No entries yet
+                                            </div>
+                                        ) : (
+                                            entries.map(entry => (
+                                                <div
+                                                    key={entry.entry_id}
+                                                    className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                                                >
+                                                    <p className="text-gray-600 dark:text-gray-300">{entry.content}</p>
+                                                    <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                                        {new Date(entry.creation_date).toLocaleString()}
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
-    return (
-        <div className="h-full flex flex-col">
-            {/* Navigation Header - Always visible */}
-            <div className="flex-none p-4 border-b border-gray-200 dark:border-gray-700">
-                <h2 className="text-lg font-semibold dark:text-white">
-                    {selectedTopicId ? 'Topic' : 'Dashboard'}
-                </h2>
-            </div>
+                        {/* Add Entry Input - Fixed at Bottom */}
+                        <div className="flex-none p-4 border-t border-gray-200 dark:border-gray-700">
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={newEntry}
+                                    onChange={(e) => setNewEntry(e.target.value)}
+                                    placeholder="Add a new entry..."
+                                    className="flex-1 px-4 py-2 rounded-lg border border-gray-300 
+                                             dark:border-gray-600 dark:bg-gray-800 dark:text-white 
+                                             focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                                <button
+                                    onClick={handleAddEntry}
+                                    className="px-4 py-2 bg-blue-500 text-white rounded-lg 
+                                             hover:bg-blue-600 transition-colors"
+                                >
+                                    Add Entry
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    // Topic View
+                    <div className="flex-1 flex flex-col">
+                        {/* Topic Tabs */}
+                        <div className="flex-none px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                            <div className="flex space-x-4">
+                                <button
+                                    onClick={() => setActiveTab('entries')}
+                                    className={`px-4 py-2 rounded-lg transition-colors ${activeTab === 'entries'
+                                            ? 'bg-blue-500 text-white'
+                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                        }`}
+                                >
+                                    Entries
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('summary')}
+                                    className={`px-4 py-2 rounded-lg transition-colors ${activeTab === 'summary'
+                                            ? 'bg-blue-500 text-white'
+                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                        }`}
+                                >
+                                    Summary
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('notes')}
+                                    className={`px-4 py-2 rounded-lg transition-colors ${activeTab === 'notes'
+                                            ? 'bg-blue-500 text-white'
+                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                        }`}
+                                >
+                                    Notes
+                                </button>
+                            </div>
+                        </div>
 
-            {!selectedTopicId ? (
-                // Dashboard View
-                <div className="flex-1 flex flex-col">
-                    <div className="flex-1 p-6 overflow-y-auto">
-                        <h2 className="text-2xl font-bold mb-6 dark:text-white">Dashboard</h2>
-                        <div className="space-y-4">
-                            <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
-                                <h3 className="text-lg font-semibold dark:text-white">Recent Entries</h3>
-                                <div className="mt-4 space-y-4">
+                        {/* Topic Content */}
+                        <div className="flex-1 overflow-y-auto p-6">
+                            {activeTab === 'entries' && (
+                                <div className="space-y-4">
                                     {entries.length === 0 ? (
-                                        <div className="text-gray-500 dark:text-gray-400">
+                                        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                                             No entries yet
                                         </div>
                                     ) : (
-                                        entries.map(entry => (
-                                            <div
-                                                key={entry.entry_id}
-                                                className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
-                                            >
-                                                <p className="text-gray-600 dark:text-gray-300">{entry.content}</p>
-                                                <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                                    {new Date(entry.created_at).toLocaleString()}
+                                        <div className="space-y-4">
+                                            {entries.map(entry => (
+                                                <div
+                                                    key={entry.entry_id}
+                                                    className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow"
+                                                >
+                                                    <p className="text-gray-700 dark:text-gray-300">{entry.content}</p>
+                                                    <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                                        {new Date(entry.creation_date).toLocaleString()}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))
+                                            ))}
+                                        </div>
                                     )}
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    {/* Add Entry Input - Fixed at Bottom */}
-                    <div className="flex-none p-4 border-t border-gray-200 dark:border-gray-700">
-                        <div className="flex gap-2">
-                            <input
-                                type="text"
-                                value={newEntry}
-                                onChange={(e) => setNewEntry(e.target.value)}
-                                placeholder="Add a new entry..."
-                                className="flex-1 px-4 py-2 rounded-lg border border-gray-300 
-                                         dark:border-gray-600 dark:bg-gray-800 dark:text-white 
-                                         focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                            <button
-                                onClick={handleAddEntry}
-                                className="px-4 py-2 bg-blue-500 text-white rounded-lg 
-                                         hover:bg-blue-600 transition-colors"
-                            >
-                                Add Entry
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            ) : (
-                // Topic View
-                <div className="flex-1 flex flex-col">
-                    {/* Topic Tabs */}
-                    <div className="flex-none px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                        <div className="flex space-x-4">
-                            <button
-                                onClick={() => setActiveTab('entries')}
-                                className={`px-4 py-2 rounded-lg transition-colors ${
-                                    activeTab === 'entries'
-                                        ? 'bg-blue-500 text-white'
-                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                }`}
-                            >
-                                Entries
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('summary')}
-                                className={`px-4 py-2 rounded-lg transition-colors ${
-                                    activeTab === 'summary'
-                                        ? 'bg-blue-500 text-white'
-                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                }`}
-                            >
-                                Summary
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('notes')}
-                                className={`px-4 py-2 rounded-lg transition-colors ${
-                                    activeTab === 'notes'
-                                        ? 'bg-blue-500 text-white'
-                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                }`}
-                            >
-                                Notes
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Topic Content */}
-                    <div className="flex-1 overflow-y-auto p-6">
-                        {activeTab === 'entries' && (
-                            <div className="space-y-4">
-                                {entries.length === 0 ? (
-                                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                                        No entries yet
+                            )}
+                            {activeTab === 'summary' && (
+                                <div className="space-y-4">
+                                    <div className="text-gray-500 dark:text-gray-400">
+                                        No summary available
                                     </div>
-                                ) : (
-                                    <div className="space-y-4">
-                                        {entries.map(entry => (
-                                            <div
-                                                key={entry.entry_id}
-                                                className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow"
-                                            >
-                                                <p className="text-gray-700 dark:text-gray-300">{entry.content}</p>
-                                                <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                                    {new Date(entry.created_at).toLocaleString()}
-                                                </div>
-                                            </div>
-                                        ))}
+                                </div>
+                            )}
+                            {activeTab === 'notes' && (
+                                <div className="space-y-4">
+                                    <div className="text-gray-500 dark:text-gray-400">
+                                        No notes yet
                                     </div>
-                                )}
-                            </div>
-                        )}
-                        {activeTab === 'summary' && (
-                            <div className="space-y-4">
-                                <div className="text-gray-500 dark:text-gray-400">
-                                    No summary available
                                 </div>
-                            </div>
-                        )}
-                        {activeTab === 'notes' && (
-                            <div className="space-y-4">
-                                <div className="text-gray-500 dark:text-gray-400">
-                                    No notes yet
-                                </div>
-                            </div>
-                        )}
-                    </div>
+                            )}
+                        </div>
 
-                    {/* Add Entry Input - Fixed at Bottom */}
-                    <div className="flex-none p-4 border-t border-gray-200 dark:border-gray-700">
-                        <div className="flex gap-2">
-                            <input
-                                type="text"
-                                value={newEntry}
-                                onChange={(e) => setNewEntry(e.target.value)}
-                                placeholder="Add a new entry..."
-                                className="flex-1 px-4 py-2 rounded-lg border border-gray-300 
-                                         dark:border-gray-600 dark:bg-gray-800 dark:text-white 
-                                         focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                            <button
-                                onClick={handleAddEntry}
-                                className="px-4 py-2 bg-blue-500 text-white rounded-lg 
-                                         hover:bg-blue-600 transition-colors"
-                            >
-                                Add Entry
-                            </button>
+                        {/* Add Entry Input - Fixed at Bottom */}
+                        <div className="flex-none p-4 border-t border-gray-200 dark:border-gray-700">
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={newEntry}
+                                    onChange={(e) => setNewEntry(e.target.value)}
+                                    placeholder="Add a new entry..."
+                                    className="flex-1 px-4 py-2 rounded-lg border border-gray-300 
+                                             dark:border-gray-600 dark:bg-gray-800 dark:text-white 
+                                             focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                                <button
+                                    onClick={handleAddEntry}
+                                    className="px-4 py-2 bg-blue-500 text-white rounded-lg 
+                                             hover:bg-blue-600 transition-colors"
+                                >
+                                    Add Entry
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
-    )
-}
+                )}
+            </div>
+        )
+    }
+)
 
 export default CenterWorkspace 
