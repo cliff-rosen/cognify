@@ -92,12 +92,17 @@ async def search_topics(db: Session, query: str, user_id: int) -> List[TopicSear
     # Get all topics for the user
     topics = db.query(Topic).filter(Topic.user_id == user_id).all()
     
-    # Create a list of (topic, score) tuples
-    scored_topics = []
-    for topic in topics:
-        # Remove await since the function is no longer async
-        score = calculate_topic_match_score(topic.topic_name, query)
-        scored_topics.append((topic, score))
+    if not topics:
+        return []
+    
+    # Get all topic names
+    topic_names = [topic.topic_name for topic in topics]
+    
+    # Get scores for all topics in one call
+    scores = ai_service.calculate_similarity_scores(topic_names, query)
+    
+    # Pair topics with their scores
+    scored_topics = list(zip(topics, scores))
     
     # Sort by score descending
     scored_topics.sort(key=lambda x: x[1], reverse=True)

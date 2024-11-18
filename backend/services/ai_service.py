@@ -1,7 +1,8 @@
 from anthropic import Anthropic
-from typing import Optional
+from typing import Optional, List, Dict, Tuple
 import os
 import logging
+import json
 from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
@@ -13,35 +14,40 @@ except Exception as e:
     logger.error(f"Failed to initialize Anthropic client: {str(e)}")
     raise
 
-def calculate_similarity_score(text1: str, text2: str) -> float:
+def calculate_similarity_scores(topics: List[str], query: str) -> List[float]:
     """
-    Use Claude to calculate a similarity score between two pieces of text.
+    Use Claude to calculate similarity scores for multiple topics against a query in a single prompt.
     
     Args:
-        text1: First text to compare
-        text2: Second text to compare
+        topics: List of topic names to compare
+        query: Search query to match against topics
         
     Returns:
-        float: Similarity score between 0 and 1, where 1 is most similar
+        List of similarity scores (0-1) in the same order as the input topics
     """
     try:
-        prompt = f"""You are a similarity scoring system. Your task is to analyze two pieces of text and return ONLY a number between 0 and 1 indicating their semantic similarity. 
+        # Create a list of topic indices for reference
+        topic_list = "\n".join([f"{i}: {topic}" for i, topic in enumerate(topics)])
+        
+        prompt = f"""You are a similarity scoring system. Analyze the semantic similarity between a search query and multiple topics.
 
-Text 1: "{text1}"
-Text 2: "{text2}"
+Search Query: "{query}"
 
-Rules:
-- Return ONLY a number between 0.0 and 1.0
+Topics to score:
+{topic_list}
+
+Return a JSON array of scores, where each score is a number between 0.0 and 1.0 indicating semantic similarity.
 - 1.0 means identical or very close meaning
 - 0.0 means completely unrelated
-- Do not include any other text or explanation
-- Format: just the number (e.g., "0.75")
+- Maintain the same order as the input topics
+- Return ONLY the JSON array of numbers, nothing else
+- Format example: [0.85, 0.32, 0.91, 0.15]
 
-Score:"""
+Scores:"""
 
         message = anthropic.messages.create(
             model="claude-3-sonnet-20240229",
-            max_tokens=10,
+            max_tokens=1000,  # Increased for longer lists
             temperature=0,
             messages=[
                 {
@@ -55,16 +61,21 @@ Score:"""
         response_text = message.content[0].text.strip()
         logger.debug(f"Raw Claude response: '{response_text}'")
         
-        # Extract the score from the response
+        # Parse the JSON array
         try:
-            score = float(response_text)
-            # Ensure score is between 0 and 1
-            score = max(0.0, min(1.0, score))
-            return score
-        except ValueError:
-            logger.error(f"Failed to parse similarity score from Claude response: '{response_text}'")
-            return 0.0
+            scores = json.loads(response_text)
+            if not isinstance(scores, list) or len(scores) != len(topics):
+                logger.error(f"Invalid response format: expected list of {len(topics)} scores")
+                return [0.0] * len(topics)
+                
+            # Ensure all scores are floats between 0 and 1
+            scores = [max(0.0, min(1.0, float(score))) for score in scores]
+            return scores
+            
+        except json.JSONDecodeError:
+            logger.error(f"Failed to parse JSON from Claude response: '{response_text}'")
+            return [0.0] * len(topics)
 
     except Exception as e:
-        logger.error(f"Error calculating similarity score: {str(e)}")
-        return 0.0 
+        logger.error(f"Error calculating similarity scores: {str(e)}")
+        return [0.0] * len(topics) 
