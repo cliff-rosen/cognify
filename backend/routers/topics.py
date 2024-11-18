@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from typing import List
 from database import get_db
-from schemas import TopicResponse, TopicCreate, TopicUpdate
+from schemas import TopicResponse, TopicCreate, TopicUpdate, TopicSearchResponse
 from dependencies import CurrentUser
 from models import Topic
 from services import topic_service, auth_service
@@ -106,4 +106,39 @@ async def update_topic(
     """
     logger.info(f"update_topic endpoint called for topic_id: {topic_id}")
     return await topic_service.update_topic(db, topic_id, topic, current_user.user_id)
+
+@router.get(
+    "/search/{query}",
+    response_model=List[TopicSearchResponse],
+    summary="Search topics by name",
+    responses={
+        200: {
+            "description": "List of topics matching the search query",
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "array",
+                        "items": {"$ref": "#/components/schemas/TopicSearchResponse"}
+                    }
+                }
+            }
+        },
+        401: {"description": "Not authenticated"}
+    }
+)
+async def search_topics(
+    query: str,
+    current_user = Depends(auth_service.validate_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Search topics for the authenticated user based on a query string
+    
+    Parameters:
+    - **query**: Search string to match against topic names
+    
+    Returns a list of topics sorted by match score (highest to lowest)
+    """
+    logger.info(f"search_topics endpoint called with query: {query}")
+    return await topic_service.search_topics(db, query, current_user.user_id)
 

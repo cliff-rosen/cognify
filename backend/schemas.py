@@ -67,6 +67,12 @@ class TopicList(BaseModel):
     items: List[TopicResponse]
     total: int = Field(ge=0)
 
+class TopicSearchResponse(TopicResponse):
+    score: float
+
+    class Config:
+        orm_mode = True
+
 # Entry Schemas
 class EntryCreate(BaseModel):
     """Schema for creating a new entry"""

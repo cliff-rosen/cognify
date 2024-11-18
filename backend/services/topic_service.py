@@ -1,9 +1,10 @@
 from sqlalchemy.orm import Session
 from models import Topic
-from schemas import TopicCreate, TopicUpdate
+from schemas import TopicCreate, TopicUpdate, TopicSearchResponse
 from fastapi import HTTPException, status
-from typing import Optional
+from typing import Optional, List
 import logging
+from services import ai_service
 
 logger = logging.getLogger(__name__)
 
@@ -56,3 +57,59 @@ async def update_topic(db: Session, topic_id: int, topic_update: TopicUpdate, us
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update topic"
         )
+
+
+def calculate_topic_match_score(topic_name: str, query: str) -> float:
+    """
+    Calculate how well a topic name matches a search query using AI.
+    
+    Args:
+        topic_name: The name of the topic to check
+        query: The search query to match against
+        
+    Returns:
+        float: Score indicating how well the topic matches (0-1)
+    """
+    try:
+        return ai_service.calculate_similarity_score(topic_name, query)
+    except Exception as e:
+        logger.error(f"Error calculating topic match score: {str(e)}")
+        return 0.0
+
+
+async def search_topics(db: Session, query: str, user_id: int) -> List[TopicSearchResponse]:
+    """
+    Search topics based on a query string and return them sorted by match score
+    
+    Args:
+        db: Database session
+        query: Search string to match against topic names
+        user_id: ID of the user whose topics to search
+        
+    Returns:
+        List of topics with match scores, sorted by score descending
+    """
+    # Get all topics for the user
+    topics = db.query(Topic).filter(Topic.user_id == user_id).all()
+    
+    # Create a list of (topic, score) tuples
+    scored_topics = []
+    for topic in topics:
+        # Remove await since the function is no longer async
+        score = calculate_topic_match_score(topic.topic_name, query)
+        scored_topics.append((topic, score))
+    
+    # Sort by score descending
+    scored_topics.sort(key=lambda x: x[1], reverse=True)
+    
+    # Convert to response objects
+    return [
+        TopicSearchResponse(
+            topic_id=topic.topic_id,
+            topic_name=topic.topic_name,
+            user_id=topic.user_id,
+            creation_date=topic.creation_date,
+            score=score
+        )
+        for topic, score in scored_topics
+    ]

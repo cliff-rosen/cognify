@@ -1,6 +1,7 @@
 from pydantic_settings import BaseSettings
 import os
 from dotenv import load_dotenv
+from typing import Optional
 
 load_dotenv()
 
@@ -17,6 +18,9 @@ class Settings(BaseSettings):
     # JWT Settings
     JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+
+    # Anthropic API Key
+    ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY")
 
     @property
     def DATABASE_URL(self) -> str:
