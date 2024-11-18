@@ -21,11 +21,11 @@ const TopBar: React.FC<TopBarProps> = ({ onEntryAdded }) => {
     // Search topics when debounced thought changes
     useEffect(() => {
         const searchTopics = async () => {
-            if (!debouncedThought.trim() || selectedTopic) {
+            if (!debouncedThought.trim() || selectedTopic || isSubmitting || !showTopicDropdown) {
                 setSearchResults([])
                 return
             }
-
+            console.log('Searching for topics...')
             setIsSearching(true)
             try {
                 const results = await topicsApi.searchTopics(debouncedThought)
@@ -39,21 +39,22 @@ const TopBar: React.FC<TopBarProps> = ({ onEntryAdded }) => {
         }
 
         searchTopics()
-    }, [debouncedThought, selectedTopic])
+    }, [debouncedThought, selectedTopic, isSubmitting, showTopicDropdown])
 
     const handleAddThought = async () => {
         if (!thought.trim() || isSubmitting) return
 
         setIsSubmitting(true)
+        setSearchResults([])
         try {
             const entry = await entriesApi.createEntry({
                 content: thought,
                 topic_id: selectedTopic?.topic_id || null
             })
-            
+
             // Notify parent component about the new entry
             onEntryAdded?.(entry)
-            
+
             setThought('')
             setSelectedTopic(null)
             setShowTopicDropdown(false)
