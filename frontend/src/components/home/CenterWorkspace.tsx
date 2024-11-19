@@ -94,160 +94,123 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
 
         return (
             <div className="h-full flex flex-col">
-                {/* Navigation Header - Always visible */}
-
                 {!selectedTopicId ? (
-                    // Dashboard View
-                    <div className="flex-1 flex flex-col">
-                        <div className="flex-1 p-6 overflow-y-auto">
-                            <h2 className="text-2xl font-bold mb-6 dark:text-white">Dashboard</h2>
-                            <div className="space-y-4">
-                                <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
-                                    <h3 className="text-lg font-semibold dark:text-white">Recent Entries</h3>
-                                    <div className="mt-4 space-y-4">
-                                        {entries.length === 0 ? (
-                                            <div className="text-gray-500 dark:text-gray-400">
-                                                No entries yet
-                                            </div>
-                                        ) : (
-                                            entries.map(entry => (
-                                                <div
-                                                    key={entry.entry_id}
-                                                    className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
-                                                >
-                                                    <p className="text-gray-600 dark:text-gray-300">{entry.content}</p>
-                                                    <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                                        {new Date(entry.creation_date).toLocaleString()}
-                                                    </div>
-                                                </div>
-                                            ))
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
+                    <>
+                        {/* Header */}
+                        <div className="flex-none p-4">
+                            <h2 className="text-2xl font-bold dark:text-white">Dashboard</h2>
                         </div>
 
-                        {/* Add Entry Input - Fixed at Bottom */}
-                        <div className="flex-none p-4 border-t border-gray-200 dark:border-gray-700">
-                            <div className="flex gap-2">
-                                <input
-                                    type="text"
-                                    value={newEntry}
-                                    onChange={(e) => setNewEntry(e.target.value)}
-                                    placeholder="Add a new entry..."
-                                    className="flex-1 px-4 py-2 rounded-lg border border-gray-300 
-                                             dark:border-gray-600 dark:bg-gray-800 dark:text-white 
-                                             focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                />
-                                <button
-                                    onClick={handleAddEntry}
-                                    className="px-4 py-2 bg-blue-500 text-white rounded-lg 
-                                             hover:bg-blue-600 transition-colors"
-                                >
-                                    Add Entry
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                ) : (
-                    // Topic View
-                    <div className="flex-1 flex flex-col">
-                        {/* Topic Tabs */}
-                        <div className="flex-none px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                            <div className="flex space-x-4">
-                                <button
-                                    onClick={() => setActiveTab('entries')}
-                                    className={`px-4 py-2 rounded-lg transition-colors ${activeTab === 'entries'
-                                            ? 'bg-blue-500 text-white'
-                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                        }`}
-                                >
-                                    Entries
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab('summary')}
-                                    className={`px-4 py-2 rounded-lg transition-colors ${activeTab === 'summary'
-                                            ? 'bg-blue-500 text-white'
-                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                        }`}
-                                >
-                                    Summary
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab('notes')}
-                                    className={`px-4 py-2 rounded-lg transition-colors ${activeTab === 'notes'
-                                            ? 'bg-blue-500 text-white'
-                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                        }`}
-                                >
-                                    Notes
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Topic Content */}
-                        <div className="flex-1 overflow-y-auto p-6">
-                            {activeTab === 'entries' && (
-                                <div className="space-y-4">
+                        {/* Scrollable Content Area */}
+                        <div className="p-4 flex-1 overflow-y-auto">
+                            <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+                                <h3 className="text-lg font-semibold p-4 border-b border-gray-200 dark:border-gray-700 dark:text-white">
+                                    Recent Entries
+                                </h3>
+                                <div className="p-4 space-y-4">
                                     {entries.length === 0 ? (
-                                        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                                        <div className="text-gray-500 dark:text-gray-400">
                                             No entries yet
                                         </div>
                                     ) : (
-                                        <div className="space-y-4">
-                                            {entries.map(entry => (
-                                                <div
-                                                    key={entry.entry_id}
-                                                    className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow"
-                                                >
-                                                    <p className="text-gray-700 dark:text-gray-300">{entry.content}</p>
-                                                    <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                                        {new Date(entry.creation_date).toLocaleString()}
-                                                    </div>
+                                        entries.map(entry => (
+                                            <div
+                                                key={entry.entry_id}
+                                                className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                                            >
+                                                <p className="text-gray-600 dark:text-gray-300 whitespace-pre-wrap">{entry.content}</p>
+                                                <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                                    {new Date(entry.creation_date).toLocaleString()}
                                                 </div>
-                                            ))}
-                                        </div>
+                                            </div>
+                                        ))
                                     )}
+                                </div>
+                            </div>
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        {/* Topic View */}
+                        <div className="flex-none border-b border-gray-200 dark:border-gray-700">
+                            <div className="px-6">
+                                <div className="flex space-x-8">
+                                    <button
+                                        onClick={() => setActiveTab('entries')}
+                                        className={`py-4 px-2 relative ${
+                                            activeTab === 'entries'
+                                                ? 'text-blue-500 dark:text-blue-400'
+                                                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                                        }`}
+                                    >
+                                        <span>Entries</span>
+                                        {activeTab === 'entries' && (
+                                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 dark:bg-blue-400"></div>
+                                        )}
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveTab('summary')}
+                                        className={`py-4 px-2 relative ${
+                                            activeTab === 'summary'
+                                                ? 'text-blue-500 dark:text-blue-400'
+                                                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                                        }`}
+                                    >
+                                        <span>Summary</span>
+                                        {activeTab === 'summary' && (
+                                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 dark:bg-blue-400"></div>
+                                        )}
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveTab('notes')}
+                                        className={`py-4 px-2 relative ${
+                                            activeTab === 'notes'
+                                                ? 'text-blue-500 dark:text-blue-400'
+                                                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                                        }`}
+                                    >
+                                        <span>Notes</span>
+                                        {activeTab === 'notes' && (
+                                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 dark:bg-blue-400"></div>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Content Area */}
+                        <div className="p-4 flex-1 overflow-y-auto">
+                            {activeTab === 'entries' && (
+                                <div className="space-y-4">
+                                    {entries.map(entry => (
+                                        <div
+                                            key={entry.entry_id}
+                                            className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow"
+                                        >
+                                            <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{entry.content}</p>
+                                            <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                                {new Date(entry.creation_date).toLocaleString()}
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
                             {activeTab === 'summary' && (
-                                <div className="space-y-4">
-                                    <div className="text-gray-500 dark:text-gray-400">
-                                        No summary available
-                                    </div>
+                                <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+                                    <p className="text-gray-500 dark:text-gray-400">
+                                        Summary view coming soon...
+                                    </p>
                                 </div>
                             )}
                             {activeTab === 'notes' && (
-                                <div className="space-y-4">
-                                    <div className="text-gray-500 dark:text-gray-400">
-                                        No notes yet
-                                    </div>
+                                <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+                                    <p className="text-gray-500 dark:text-gray-400">
+                                        Notes view coming soon...
+                                    </p>
                                 </div>
                             )}
                         </div>
-
-                        {/* Add Entry Input - Fixed at Bottom */}
-                        <div className="flex-none p-4 border-t border-gray-200 dark:border-gray-700">
-                            <div className="flex gap-2">
-                                <input
-                                    type="text"
-                                    value={newEntry}
-                                    onChange={(e) => setNewEntry(e.target.value)}
-                                    placeholder="Add a new entry..."
-                                    className="flex-1 px-4 py-2 rounded-lg border border-gray-300 
-                                             dark:border-gray-600 dark:bg-gray-800 dark:text-white 
-                                             focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                />
-                                <button
-                                    onClick={handleAddEntry}
-                                    className="px-4 py-2 bg-blue-500 text-white rounded-lg 
-                                             hover:bg-blue-600 transition-colors"
-                                >
-                                    Add Entry
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                    </>
                 )}
             </div>
         )

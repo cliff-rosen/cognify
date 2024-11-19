@@ -30,7 +30,8 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
                 "application/json": {
                     "example": {
                         "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-                        "token_type": "bearer"
+                        "token_type": "bearer",
+                        "username": "john.doe"
                     }
                 }
             }
@@ -54,6 +55,7 @@ async def login(
     Returns:
     - **access_token**: JWT token to use for authentication
     - **token_type**: "bearer"
+    - **username**: user's username
     """
     try:
         token = await auth_service.login_user(db, username, password)

@@ -38,7 +38,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
                 })
-                return { ...response.data, username: credentials.username }
+                
+                return response.data
             } catch (error: any) {
                 throw new Error(error.response?.data?.detail || 'Login failed')
             }
@@ -46,9 +47,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         onSuccess: (data) => {
             setError(null)
             localStorage.setItem('authToken', data.access_token)
-            localStorage.setItem('user', JSON.stringify({ id: data.user_id, username: data.username }))
+            localStorage.setItem('user', JSON.stringify({ 
+                id: data.user_id, 
+                username: data.username 
+            }))
             setIsAuthenticated(true)
-            setUser({ id: data.user_id, username: data.username })
+            setUser({ 
+                id: data.user_id, 
+                username: data.username 
+            })
         },
         onError: (error: Error) => {
             setError(error.message)

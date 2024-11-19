@@ -27,11 +27,13 @@ class Token(BaseModel):
     """Schema for authentication tokens"""
     access_token: str = Field(description="JWT access token")
     token_type: str = Field(default="bearer", description="Type of token")
+    username: str = Field(description="User's username")
 
 class TokenData(BaseModel):
     """Schema for token payload data"""
     email: Optional[str] = Field(default=None, description="User's email from token")
     user_id: Optional[int] = Field(default=None, description="User's ID from token")
+    username: Optional[str] = Field(default=None, description="User's username")
 
 # Topic Schemas
 class TopicCreate(BaseModel):

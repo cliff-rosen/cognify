@@ -13,9 +13,6 @@ export default function Home() {
     const centerWorkspaceRef = useRef<{ refreshEntries: () => void } | null>(null)
 
     const handleEntryAdded = (entry: Entry) => {
-        // Only refresh if:
-        // 1. We're in dashboard view (selectedTopicId is null) OR
-        // 2. The new entry belongs to the currently selected topic
         if (!selectedTopicId || entry.topic_id === selectedTopicId) {
             centerWorkspaceRef.current?.refreshEntries()
         }
@@ -23,7 +20,7 @@ export default function Home() {
 
     if (!isAuthenticated) {
         return (
-            <div className="flex h-full items-center justify-center dark:bg-gray-900">
+            <div className="h-screen flex items-center justify-center dark:bg-gray-900">
                 <div className="text-center">
                     <h1 className="text-3xl font-bold dark:text-white">
                         Welcome to Cognify
@@ -34,34 +31,34 @@ export default function Home() {
     }
 
     return (
-        <div className="h-full flex flex-col dark:bg-gray-900">
-            {/* Top Section */}
+        <div className="h-screen flex flex-col dark:bg-gray-900">
+            {/* Top Bar */}
             <div className="flex-none">
                 <TopBar onEntryAdded={handleEntryAdded} />
             </div>
 
             {/* Main Content Area */}
-            <div className="flex-1 flex h-[calc(100%-64px)]">
+            <div className="flex-1 flex min-h-0">
                 {/* Left Sidebar */}
-                <div className="w-64 flex border-r border-gray-200 dark:border-gray-700">
+                <aside className="w-64 flex-none border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
                     <LeftSidebar
                         onSelectTopic={setSelectedTopicId}
                         selectedTopicId={selectedTopicId}
                     />
-                </div>
+                </aside>
 
-                {/* Center Workspace */}
-                <div className="flex-1 flex">
+                {/* Center Content */}
+                <main className="flex-1 min-w-0 overflow-hidden">
                     <CenterWorkspace 
                         ref={centerWorkspaceRef}
                         selectedTopicId={selectedTopicId} 
                     />
-                </div>
+                </main>
 
                 {/* Right Sidebar */}
-                <div className="w-80 flex border-l border-gray-200 dark:border-gray-700">
+                <aside className="w-80 flex-none border-l border-gray-200 dark:border-gray-700 overflow-y-auto">
                     <RightSidebar />
-                </div>
+                </aside>
             </div>
         </div>
     )

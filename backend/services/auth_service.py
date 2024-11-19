@@ -66,12 +66,21 @@ async def login_user(db: Session, email: str, password: str) -> Token:
             detail="Incorrect email or password"
         )
     
-    # Include both email and user_id in the token
+    # Extract username from email (everything before @)
+    username = email.split('@')[0]
+    
+    # Include email, user_id, and username in the token
     access_token = create_access_token(data={
         "sub": user.email,
-        "user_id": user.user_id
+        "user_id": user.user_id,
+        "username": username
     })
-    return Token(access_token=access_token, token_type="bearer")
+    
+    return Token(
+        access_token=access_token, 
+        token_type="bearer",
+        username=username
+    )
 
 async def validate_token(
     credentials: HTTPBearer = Depends(security),
@@ -88,7 +97,8 @@ async def validate_token(
         time_until_expiry = exp_timestamp - int(time.time())
         logger.info(f"Token expires in {time_until_expiry} seconds")        
         email: str = payload.get("sub")
-        logger.info(f"Token decoded, email: {email}")
+        username: str = payload.get("username")
+        logger.info(f"Token decoded, email: {email}, username: {username}")
         
         if email is None:
             raise HTTPException(
@@ -103,6 +113,8 @@ async def validate_token(
                 detail="User not found"
             )
             
+        # Add username to user object for convenience
+        user.username = username
         return user
     except Exception as e:
         logger.info("############## JWT validation error ##############")
