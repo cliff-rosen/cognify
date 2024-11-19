@@ -6,9 +6,11 @@ import CenterWorkspace from '../components/home/CenterWorkspace'
 import RightSidebar from '../components/home/RightSidebar'
 import { useState, useRef } from 'react'
 import { Entry } from '../lib/api/entriesApi'
+import { Topic } from '../lib/api/topicsApi'
 
 export default function Home() {
     const { isAuthenticated, user } = useAuth()
+    const [topics, setTopics] = useState<Topic[]>([])
     const [selectedTopicId, setSelectedTopicId] = useState<number | null>(null)
     const centerWorkspaceRef = useRef<{ refreshEntries: () => void } | null>(null)
 
@@ -16,6 +18,10 @@ export default function Home() {
         if (!selectedTopicId || entry.topic_id === selectedTopicId) {
             centerWorkspaceRef.current?.refreshEntries()
         }
+    }
+
+    const handleTopicCreated = (newTopic: Topic) => {
+        setTopics(prevTopics => [...prevTopics, newTopic])
     }
 
     if (!isAuthenticated) {
@@ -34,7 +40,7 @@ export default function Home() {
         <div className="h-screen flex flex-col dark:bg-gray-900">
             {/* Top Bar */}
             <div className="flex-none">
-                <TopBar onEntryAdded={handleEntryAdded} />
+                <TopBar onEntryAdded={handleEntryAdded} onTopicCreated={handleTopicCreated} />
             </div>
 
             {/* Main Content Area */}
@@ -44,6 +50,8 @@ export default function Home() {
                     <LeftSidebar
                         onSelectTopic={setSelectedTopicId}
                         selectedTopicId={selectedTopicId}
+                        topics={topics}
+                        onTopicsChange={setTopics}
                     />
                 </aside>
 

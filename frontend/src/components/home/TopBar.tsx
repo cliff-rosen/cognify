@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react'
-import { Topic, TopicSearchResult, topicsApi } from '../../lib/api/topicsApi'
+import { Topic, TopicSearchResult, topicsApi, TopicCreate } from '../../lib/api/topicsApi'
 import { entriesApi, Entry } from '../../lib/api/entriesApi'
 import { useDebounce } from '../../hooks/useDebounce'
 
 interface TopBarProps {
     onEntryAdded?: (entry: Entry) => void;
+    onTopicCreated?: (topic: Topic) => void;
 }
 
-const TopBar: React.FC<TopBarProps> = ({ onEntryAdded }) => {
+const TopBar: React.FC<TopBarProps> = ({ onEntryAdded, onTopicCreated }) => {
     const [thought, setThought] = useState('')
     const [isSearching, setIsSearching] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -29,7 +30,15 @@ const TopBar: React.FC<TopBarProps> = ({ onEntryAdded }) => {
             setIsSearching(true)
             try {
                 const results = await topicsApi.searchTopics(debouncedThought)
-                setSearchResults(results)
+                const newTopicOption: TopicSearchResult = {
+                    topic_id: -1,
+                    topic_name: debouncedThought,
+                    user_id: -1,
+                    creation_date: new Date().toISOString(),
+                    score: 0,
+                    isNewTopic: true
+                }
+                setSearchResults([...results, newTopicOption])
             } catch (error) {
                 console.error('Error searching topics:', error)
                 setSearchResults([])
@@ -40,6 +49,24 @@ const TopBar: React.FC<TopBarProps> = ({ onEntryAdded }) => {
 
         searchTopics()
     }, [debouncedThought, selectedTopic, isSubmitting, showTopicDropdown])
+
+    const handleTopicSelection = async (topic: TopicSearchResult) => {
+        if (topic.isNewTopic) {
+            try {
+                const newTopic = await topicsApi.createTopic({
+                    topic_name: topic.topic_name
+                })
+                setSelectedTopic(newTopic)
+                onTopicCreated?.(newTopic)
+            } catch (error) {
+                console.error('Error creating new topic:', error)
+                // You might want to show an error message to the user here
+            }
+        } else {
+            setSelectedTopic(topic)
+        }
+        setShowTopicDropdown(false)
+    }
 
     const handleAddThought = async () => {
         if (!thought.trim() || isSubmitting) return
@@ -96,20 +123,26 @@ const TopBar: React.FC<TopBarProps> = ({ onEntryAdded }) => {
                                     <ul className="py-1">
                                         {searchResults.map((topic) => (
                                             <li
-                                                key={topic.topic_id}
+                                                key={topic.isNewTopic ? 'new' : topic.topic_id}
                                                 className="px-4 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
-                                                onClick={() => {
-                                                    setSelectedTopic(topic)
-                                                    setShowTopicDropdown(false)
-                                                }}
+                                                onClick={() => handleTopicSelection(topic)}
                                             >
                                                 <div className="flex justify-between items-center">
                                                     <span className="text-gray-700 dark:text-gray-300">
-                                                        {topic.topic_name}
+                                                        {topic.isNewTopic ? (
+                                                            <span className="flex items-center gap-2">
+                                                                <span className="text-blue-500">+</span>
+                                                                Create "{topic.topic_name}"
+                                                            </span>
+                                                        ) : (
+                                                            topic.topic_name
+                                                        )}
                                                     </span>
-                                                    <span className="text-sm text-gray-500 dark:text-gray-400 ml-4">
-                                                        {(topic.score * 100).toFixed(0)}% match
-                                                    </span>
+                                                    {!topic.isNewTopic && (
+                                                        <span className="text-sm text-gray-500 dark:text-gray-400 ml-4">
+                                                            {(topic.score * 100).toFixed(0)}% match
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </li>
                                         ))}

@@ -4,10 +4,16 @@ import { Topic, topicsApi } from '../../lib/api/topicsApi'
 interface LeftSidebarProps {
     onSelectTopic: (topicId: number | null) => void;
     selectedTopicId: number | null;
+    topics: Topic[];
+    onTopicsChange: (topics: Topic[]) => void;
 }
 
-const LeftSidebar: React.FC<LeftSidebarProps> = ({ onSelectTopic, selectedTopicId }) => {
-    const [topics, setTopics] = useState<Topic[]>([])
+const LeftSidebar: React.FC<LeftSidebarProps> = ({ 
+    onSelectTopic, 
+    selectedTopicId, 
+    topics, 
+    onTopicsChange
+}) => {
     const [isLoading, setIsLoading] = useState(false)
     const [editingTopicId, setEditingTopicId] = useState<number | null>(null)
     const [editingName, setEditingName] = useState('')
@@ -22,7 +28,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({ onSelectTopic, selectedTopicI
         setIsLoading(true)
         try {
             const fetchedTopics = await topicsApi.getTopics()
-            setTopics(fetchedTopics)
+            onTopicsChange(fetchedTopics)
         } catch (error) {
             console.error('Error fetching topics:', error)
         } finally {
@@ -41,7 +47,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({ onSelectTopic, selectedTopicI
             const newTopic = await topicsApi.createTopic({
                 topic_name: newTopicName.trim()
             })
-            setTopics([...topics, newTopic])
+            onTopicsChange([...topics, newTopic])
             setIsCreating(false)
             setNewTopicName('')
         } catch (error) {
@@ -70,13 +76,12 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({ onSelectTopic, selectedTopicI
                 topic_name: editingName.trim()
             })
             
-            setTopics(topics.map(topic => 
+            onTopicsChange(topics.map(topic =>  
                 topic.topic_id === topicId ? updatedTopic : topic
             ))
             cancelEditing()
         } catch (error) {
             console.error('Error updating topic:', error)
-            // You might want to show an error message here
         }
     }
 
@@ -112,6 +117,36 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({ onSelectTopic, selectedTopicI
             </div>
             <div className="flex-1 overflow-y-auto p-2">
                 <ul className="space-y-1">
+                    <li>
+                        <div
+                            className={`flex items-center p-2 rounded-lg cursor-pointer
+                                      hover:bg-gray-100 dark:hover:bg-gray-700
+                                      ${selectedTopicId === null ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
+                            onClick={() => onSelectTopic(null)}
+                        >
+                            <span className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                                <svg 
+                                    className="w-5 h-5" 
+                                    fill="none" 
+                                    stroke="currentColor" 
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path 
+                                        strokeLinecap="round" 
+                                        strokeLinejoin="round" 
+                                        strokeWidth={2} 
+                                        d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" 
+                                    />
+                                </svg>
+                                Dashboard
+                            </span>
+                        </div>
+                    </li>
+
+                    <li className="py-2">
+                        <div className="border-t border-gray-200 dark:border-gray-700"></div>
+                    </li>
+
                     {isCreating && (
                         <li>
                             <div className="flex items-center p-2 rounded-lg">
