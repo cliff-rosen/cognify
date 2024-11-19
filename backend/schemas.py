@@ -10,7 +10,7 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     """Schema for creating a new user"""
     password: str = Field(
-        min_length=8,
+        min_length=5,
         description="User's password",
         example="securepassword123"
     )

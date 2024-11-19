@@ -9,11 +9,17 @@ import { Entry } from '../lib/api/entriesApi'
 import { Topic } from '../lib/api/topicsApi'
 
 export default function Home() {
-    const { isAuthenticated, user } = useAuth()
+    const { isAuthenticated, user, login, register, error } = useAuth()
     const [topics, setTopics] = useState<Topic[]>([])
     const [selectedTopicId, setSelectedTopicId] = useState<number | null>(null)
     const centerWorkspaceRef = useRef<{ refreshEntries: () => void } | null>(null)
     const [showRightSidebar, setShowRightSidebar] = useState(true)
+    const [isRegistering, setIsRegistering] = useState(false)
+    const [formData, setFormData] = useState({
+        email: '',
+        password: '',
+    })
+    const [messageType, setMessageType] = useState<'success' | 'error' | null>(null)
 
     const handleEntryAdded = (entry: Entry) => {
         if (!selectedTopicId || entry.topic_id === selectedTopicId) {
@@ -25,13 +31,103 @@ export default function Home() {
         setTopics(prevTopics => [...prevTopics, newTopic])
     }
 
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (isRegistering) {
+            register.mutate(formData, {
+                onSuccess: () => {
+                    setIsRegistering(false)
+                    setFormData(prev => ({
+                        ...prev,
+                        password: ''
+                    }))
+                }
+            })
+        } else {
+            login.mutate({ username: formData.email, password: formData.password })
+        }
+    }
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFormData({
+            ...formData,
+            [e.target.name]: e.target.value
+        })
+    }
+
     if (!isAuthenticated) {
         return (
-            <div className="h-screen flex items-center justify-center dark:bg-gray-900">
-                <div className="text-center">
-                    <h1 className="text-3xl font-bold dark:text-white">
-                        Welcome to Cognify
-                    </h1>
+            <div className="min-h-screen flex items-center justify-center dark:bg-gray-900 bg-gray-50">
+                <div className="max-w-md w-full space-y-8 p-8 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+                    <div className="text-center">
+                        <h1 className="text-3xl font-bold dark:text-white mb-2">
+                            Welcome to Cognify
+                        </h1>
+                        <p className="text-gray-600 dark:text-gray-300">
+                            {isRegistering ? 'Create your account' : 'Sign in to your account'}
+                        </p>
+                    </div>
+
+                    {error && (
+                        <div className={`border px-4 py-3 rounded relative ${
+                            error.includes('successful') 
+                                ? 'bg-green-100 border-green-400 text-green-700' 
+                                : 'bg-red-100 border-red-400 text-red-700'
+                        }`}>
+                            {error}
+                        </div>
+                    )}
+
+                    <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+                        <div className="rounded-md shadow-sm space-y-4">
+                            <div>
+                                <label htmlFor="email" className="sr-only">Email address</label>
+                                <input
+                                    id="email"
+                                    name="email"
+                                    type="email"
+                                    required
+                                    className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                                    placeholder="Email address"
+                                    value={formData.email}
+                                    onChange={handleInputChange}
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="password" className="sr-only">Password</label>
+                                <input
+                                    id="password"
+                                    name="password"
+                                    type="password"
+                                    required
+                                    className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                                    placeholder="Password"
+                                    value={formData.password}
+                                    onChange={handleInputChange}
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <button
+                                type="submit"
+                                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                            >
+                                {isRegistering ? 'Register' : 'Sign in'}
+                            </button>
+                        </div>
+                    </form>
+
+                    <div className="text-center">
+                        <button
+                            onClick={() => setIsRegistering(!isRegistering)}
+                            className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500"
+                        >
+                            {isRegistering 
+                                ? 'Already have an account? Sign in' 
+                                : 'Need an account? Register'}
+                        </button>
+                    </div>
                 </div>
             </div>
         )

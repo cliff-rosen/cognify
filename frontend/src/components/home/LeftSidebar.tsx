@@ -117,6 +117,11 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
             return
         }
         
+        // Don't allow drops on Dashboard (when topicId is null)
+        if (topicId === null) {
+            return
+        }
+        
         // Check if dragging to same topic using the ref
         if (draggedEntryRef.current?.topic_id === topicId) {
             return

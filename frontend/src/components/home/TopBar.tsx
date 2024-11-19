@@ -178,7 +178,7 @@ const TopBar: React.FC<TopBarProps> = ({ onEntryAdded, onTopicCreated }) => {
                                                         value={newTopicName}
                                                         onChange={(e) => setNewTopicName(e.target.value)}
                                                         placeholder="Enter topic name..."
-                                                        className="flex-1 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                        className="flex-1 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                                         autoFocus
                                                     />
                                                     <button
@@ -194,7 +194,7 @@ const TopBar: React.FC<TopBarProps> = ({ onEntryAdded, onTopicCreated }) => {
                                                             setIsAddingNewTopic(false)
                                                             setNewTopicName('')
                                                         }}
-                                                        className="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                                                        className="px-3 py-1 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100"
                                                     >
                                                         Cancel
                                                     </button>

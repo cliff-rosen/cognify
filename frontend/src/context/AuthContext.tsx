@@ -6,6 +6,7 @@ interface AuthContextType {
     isAuthenticated: boolean
     user: { id: string; username: string } | null
     login: any
+    register: any
     logout: () => void
     error: string | null
 }
@@ -16,6 +17,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [isAuthenticated, setIsAuthenticated] = useState(false)
     const [user, setUser] = useState<{ id: string; username: string } | null>(null)
     const [error, setError] = useState<string | null>(null)
+    const [isRegistering, setIsRegistering] = useState(false)
 
     useEffect(() => {
         const token = localStorage.getItem('authToken')
@@ -38,7 +40,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
                 })
-                
+
                 return response.data
             } catch (error: any) {
                 throw new Error(error.response?.data?.detail || 'Login failed')
@@ -47,15 +49,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         onSuccess: (data) => {
             setError(null)
             localStorage.setItem('authToken', data.access_token)
-            localStorage.setItem('user', JSON.stringify({ 
-                id: data.user_id, 
-                username: data.username 
+            localStorage.setItem('user', JSON.stringify({
+                id: data.user_id,
+                username: data.username
             }))
             setIsAuthenticated(true)
-            setUser({ 
-                id: data.user_id, 
-                username: data.username 
+            setUser({
+                id: data.user_id,
+                username: data.username
             })
+        },
+        onError: (error: Error) => {
+            setError(error.message)
+        }
+    })
+
+    const register = useMutation({
+        mutationFn: async (credentials: { email: string; password: string }) => {
+            try {
+                const response = await api.post('/api/auth/register', credentials)
+                return response.data
+            } catch (error: any) {
+                if (error.response) {
+                    const errorMessage = error.response.data?.detail || 
+                                       error.response.data?.message || 
+                                       error.response.data || 
+                                       'Registration failed'
+                    throw new Error(typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage))
+                } else if (error.request) {
+                    throw new Error('No response from server. Please try again.')
+                } else {
+                    throw new Error(error.message || 'Registration failed. Please try again.')
+                }
+            }
+        },
+        onSuccess: () => {
+            setError(null)
+            setError('Registration successful! Please sign in.')
         },
         onError: (error: Error) => {
             setError(error.message)
@@ -70,7 +100,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     return (
-        <AuthContext.Provider value={{ isAuthenticated, user, login, logout, error }}>
+        <AuthContext.Provider value={{ isAuthenticated, user, login, register, logout, error }}>
             {children}
         </AuthContext.Provider>
     )
