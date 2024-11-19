@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from models import Topic
+from models import Topic, Entry
 from schemas import TopicCreate, TopicUpdate, TopicSearchResponse
 from fastapi import HTTPException, status
 from typing import Optional, List
@@ -118,3 +118,41 @@ async def search_topics(db: Session, query: str, user_id: int) -> List[TopicSear
         )
         for topic, score in scored_topics
     ]
+
+
+async def delete_topic(db: Session, topic_id: int, user_id: int):
+    """Delete a topic and all its associated entries if it belongs to the user"""
+    try:
+        # Get existing topic
+        db_topic = db.query(Topic).filter(Topic.topic_id == topic_id).first()
+        if not db_topic:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Topic not found"
+            )
+            
+        # Verify ownership
+        if db_topic.user_id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Topic belongs to another user"
+            )
+            
+        # Delete associated entries first
+        db.query(Entry).filter(Entry.topic_id == topic_id).delete()
+        
+        # Delete the topic
+        db.delete(db_topic)
+        db.commit()
+        
+        logger.info(f"Deleted topic {topic_id} and its entries for user {user_id}")
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error deleting topic: {str(e)}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete topic"
+        )

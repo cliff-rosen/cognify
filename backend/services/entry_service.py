@@ -147,3 +147,37 @@ async def get_entry_by_id(db: Session, entry_id: int, user_id: int):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve entry"
         )
+
+async def delete_entry(db: Session, entry_id: int, user_id: int):
+    """Delete an entry if it belongs to the user"""
+    try:
+        # Get existing entry
+        db_entry = db.query(Entry).filter(Entry.entry_id == entry_id).first()
+        if not db_entry:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Entry not found"
+            )
+            
+        # Verify ownership
+        if db_entry.user_id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Entry belongs to another user"
+            )
+            
+        # Delete the entry
+        db.delete(db_entry)
+        db.commit()
+        
+        logger.info(f"Deleted entry {entry_id} for user {user_id}")
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error deleting entry: {str(e)}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete entry"
+        )

@@ -18,6 +18,7 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
         const [error, setError] = useState<string | null>(null)
         const [activeTab, setActiveTab] = useState<'entries' | 'summary' | 'notes'>('entries')
         const [newEntry, setNewEntry] = useState('')
+        const [entryToDelete, setEntryToDelete] = useState<Entry | null>(null)
 
         const fetchEntries = async () => {
             try {
@@ -25,7 +26,7 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                 setError(null)
 
                 const fetchedEntries = await entriesApi.getEntries(
-                    selectedTopicId ? { topic_id: selectedTopicId } : undefined
+                    selectedTopicId ? selectedTopicId : undefined
                 )
                 setEntries(fetchedEntries)
 
@@ -44,10 +45,20 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
             fetchEntries()
         }, [selectedTopicId])
 
-        // Expose the refresh method to parent components
         useImperativeHandle(ref, () => ({
             refreshEntries: fetchEntries
         }))
+
+        const handleDeleteEntry = async (entry: Entry) => {
+            try {
+                await entriesApi.deleteEntry(entry.entry_id)
+                setEntries(entries.filter(e => e.entry_id !== entry.entry_id))
+                setEntryToDelete(null)
+            } catch (err) {
+                console.error('Error deleting entry:', err)
+                // TODO: Show error notification
+            }
+        }
 
         const handleAddEntry = async () => {
             if (!newEntry.trim()) return
@@ -185,11 +196,25 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                                     {entries.map(entry => (
                                         <div
                                             key={entry.entry_id}
-                                            className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow"
+                                            className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow group relative"
                                         >
-                                            <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{entry.content}</p>
-                                            <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                                {new Date(entry.creation_date).toLocaleString()}
+                                            <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                                                {entry.content}
+                                            </p>
+                                            <div className="mt-2 flex justify-between items-center">
+                                                <span className="text-sm text-gray-500 dark:text-gray-400">
+                                                    {new Date(entry.creation_date).toLocaleString()}
+                                                </span>
+                                                <button
+                                                    onClick={() => setEntryToDelete(entry)}
+                                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                                                    title="Delete entry"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                                                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
+                                                </button>
                                             </div>
                                         </div>
                                     ))}
@@ -211,6 +236,34 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                             )}
                         </div>
                     </>
+                )}
+
+                {/* Delete Confirmation Modal */}
+                {entryToDelete && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm w-full">
+                            <h3 className="text-lg font-semibold mb-4 dark:text-white">
+                                Delete Entry
+                            </h3>
+                            <p className="text-gray-600 dark:text-gray-300 mb-6">
+                                Are you sure you want to delete this entry? This action cannot be undone.
+                            </p>
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    onClick={() => setEntryToDelete(null)}
+                                    className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => handleDeleteEntry(entryToDelete)}
+                                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+                                >
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 )}
             </div>
         )

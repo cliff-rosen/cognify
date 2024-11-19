@@ -19,6 +19,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
     const [editingName, setEditingName] = useState('')
     const [isCreating, setIsCreating] = useState(false)
     const [newTopicName, setNewTopicName] = useState('')
+    const [topicToDelete, setTopicToDelete] = useState<Topic | null>(null)
 
     useEffect(() => {
         fetchTopics()
@@ -90,6 +91,19 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
             handleRename(topicId)
         } else if (e.key === 'Escape') {
             cancelEditing()
+        }
+    }
+
+    const handleDeleteTopic = async (topic: Topic) => {
+        try {
+            await topicsApi.deleteTopic(topic.topic_id)
+            onTopicsChange(topics.filter(t => t.topic_id !== topic.topic_id))
+            if (selectedTopicId === topic.topic_id) {
+                onSelectTopic(null)
+            }
+            setTopicToDelete(null)
+        } catch (error) {
+            console.error('Error deleting topic:', error)
         }
     }
 
@@ -200,24 +214,68 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                                     >
                                         {topic.topic_name}
                                     </span>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation()
-                                            startEditing(topic)
-                                        }}
-                                        className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                                    >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                                                  d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                        </svg>
-                                    </button>
+                                    <div className="flex items-center gap-1">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                startEditing(topic)
+                                            }}
+                                            className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                                            title="Edit topic"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                                                      d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                            </svg>
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                setTopicToDelete(topic)
+                                            }}
+                                            className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                                            title="Delete topic"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                                                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                         </li>
                     ))}
                 </ul>
             </div>
+
+            {/* Delete Confirmation Modal */}
+            {topicToDelete && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm w-full">
+                        <h3 className="text-lg font-semibold mb-4 dark:text-white">
+                            Delete Topic
+                        </h3>
+                        <p className="text-gray-600 dark:text-gray-300 mb-6">
+                            Are you sure you want to delete "{topicToDelete.topic_name}"? This action cannot be undone.
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setTopicToDelete(null)}
+                                className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => handleDeleteTopic(topicToDelete)}
+                                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

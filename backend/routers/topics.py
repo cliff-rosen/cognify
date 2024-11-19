@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 from typing import List
 from database import get_db
@@ -141,4 +141,30 @@ async def search_topics(
     """
     logger.info(f"search_topics endpoint called with query: {query}")
     return await topic_service.search_topics(db, query, current_user.user_id)
+
+@router.delete(
+    "/{topic_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a topic",
+    responses={
+        204: {"description": "Topic successfully deleted"},
+        401: {"description": "Not authenticated"},
+        403: {"description": "Topic belongs to another user"},
+        404: {"description": "Topic not found"}
+    }
+)
+async def delete_topic(
+    topic_id: int,
+    current_user = Depends(auth_service.validate_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete a topic and all its associated entries
+    
+    Parameters:
+    - **topic_id**: ID of the topic to delete
+    """
+    logger.info(f"delete_topic endpoint called for topic_id: {topic_id}")
+    await topic_service.delete_topic(db, topic_id, current_user.user_id)
+    return None
 

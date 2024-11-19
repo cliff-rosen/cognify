@@ -13,6 +13,7 @@ export default function Home() {
     const [topics, setTopics] = useState<Topic[]>([])
     const [selectedTopicId, setSelectedTopicId] = useState<number | null>(null)
     const centerWorkspaceRef = useRef<{ refreshEntries: () => void } | null>(null)
+    const [showRightSidebar, setShowRightSidebar] = useState(true)
 
     const handleEntryAdded = (entry: Entry) => {
         if (!selectedTopicId || entry.topic_id === selectedTopicId) {
@@ -56,17 +57,47 @@ export default function Home() {
                 </aside>
 
                 {/* Center Content */}
-                <main className="flex-1 min-w-0 overflow-hidden">
-                    <CenterWorkspace 
-                        ref={centerWorkspaceRef}
-                        selectedTopicId={selectedTopicId} 
-                    />
-                </main>
+                <main className={`flex-1 min-w-0 overflow-hidden flex`}>
+                    <div className="flex-1">
+                        <CenterWorkspace 
+                            ref={centerWorkspaceRef}
+                            selectedTopicId={selectedTopicId} 
+                        />
+                    </div>
+                    
+                    {/* Toggle Button */}
+                    <div className="flex-none border-l border-gray-200 dark:border-gray-700 flex items-center">
+                        <button
+                            onClick={() => setShowRightSidebar(!showRightSidebar)}
+                            className="p-1 -ml-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full shadow"
+                            title={showRightSidebar ? "Hide AI Assistant" : "Show AI Assistant"}
+                        >
+                            <svg 
+                                className="w-4 h-4 text-gray-600 dark:text-gray-300" 
+                                fill="none" 
+                                stroke="currentColor" 
+                                viewBox="0 0 24 24"
+                            >
+                                <path 
+                                    strokeLinecap="round" 
+                                    strokeLinejoin="round" 
+                                    strokeWidth={2} 
+                                    d={showRightSidebar 
+                                        ? "M9 5l7 7-7 7"  // chevron-right when sidebar is visible
+                                        : "M15 19l-7-7 7-7" // chevron-left when sidebar is hidden
+                                    }
+                                />
+                            </svg>
+                        </button>
+                    </div>
 
-                {/* Right Sidebar */}
-                <aside className="w-80 flex-none border-l border-gray-200 dark:border-gray-700 overflow-y-auto">
-                    <RightSidebar />
-                </aside>
+                    {/* Right Sidebar with conditional rendering */}
+                    {showRightSidebar && (
+                        <aside className="w-80 flex-none border-l border-gray-200 dark:border-gray-700 overflow-y-auto">
+                            <RightSidebar />
+                        </aside>
+                    )}
+                </main>
             </div>
         </div>
     )

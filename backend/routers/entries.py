@@ -5,6 +5,7 @@ from database import get_db
 from schemas import EntryCreate, EntryResponse, EntryUpdate
 from services import entry_service, auth_service
 import logging
+from fastapi import status
 
 logger = logging.getLogger(__name__)
 
@@ -165,3 +166,29 @@ async def get_entry(
     """
     logger.info(f"get_entry called for entry {entry_id} by user {current_user.user_id}")
     return await entry_service.get_entry_by_id(db, entry_id, current_user.user_id)
+
+@router.delete(
+    "/{entry_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete an entry",
+    responses={
+        204: {"description": "Entry successfully deleted"},
+        401: {"description": "Not authenticated"},
+        403: {"description": "Entry belongs to another user"},
+        404: {"description": "Entry not found"}
+    }
+)
+async def delete_entry(
+    entry_id: int,
+    current_user = Depends(auth_service.validate_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete an entry
+    
+    Parameters:
+    - **entry_id**: ID of the entry to delete
+    """
+    logger.info(f"delete_entry called for entry {entry_id} by user {current_user.user_id}")
+    await entry_service.delete_entry(db, entry_id, current_user.user_id)
+    return None
