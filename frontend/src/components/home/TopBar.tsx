@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Topic, TopicSearchResult, topicsApi, TopicCreate } from '../../lib/api/topicsApi'
+import { Topic, TopicSearchResult, topicsApi } from '../../lib/api/topicsApi'
 import { entriesApi, Entry } from '../../lib/api/entriesApi'
 import { useDebounce } from '../../hooks/useDebounce'
 
@@ -164,7 +164,7 @@ const TopBar: React.FC<TopBarProps> = ({ onEntryAdded, onTopicCreated }) => {
                                         {/* Add New Topic Option */}
                                         {isAddingNewTopic ? (
                                             <li className="px-4 py-2.5 border-t border-gray-200 dark:border-gray-700">
-                                                <form 
+                                                <form
                                                     onSubmit={(e) => {
                                                         e.preventDefault()
                                                         if (newTopicName.trim()) {
@@ -201,7 +201,7 @@ const TopBar: React.FC<TopBarProps> = ({ onEntryAdded, onTopicCreated }) => {
                                                 </form>
                                             </li>
                                         ) : (
-                                            <li 
+                                            <li
                                                 className="px-4 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-t border-gray-200 dark:border-gray-700"
                                                 onClick={() => {
                                                     setIsAddingNewTopic(true)

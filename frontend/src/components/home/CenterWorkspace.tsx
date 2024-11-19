@@ -1,5 +1,5 @@
-import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react'
-import { topicsApi, Topic } from '../../lib/api/topicsApi'
+import { useState, useEffect, forwardRef, useImperativeHandle } from 'react'
+import { Topic } from '../../lib/api/topicsApi'
 import { entriesApi, Entry } from '../../lib/api/entriesApi'
 import { DragEvent } from 'react'
 
@@ -13,12 +13,11 @@ export interface CenterWorkspaceHandle {
 
 const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
     ({ selectedTopicId }, ref) => {
-        const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null)
+        const [_selectedTopic, setSelectedTopic] = useState<Topic | null>(null)
         const [entries, setEntries] = useState<Entry[]>([])
         const [isLoading, setIsLoading] = useState(false)
         const [error, setError] = useState<string | null>(null)
         const [activeTab, setActiveTab] = useState<'entries' | 'summary' | 'notes'>('entries')
-        const [newEntry, setNewEntry] = useState('')
         const [entryToDelete, setEntryToDelete] = useState<Entry | null>(null)
 
         const fetchEntries = async () => {
@@ -61,45 +60,29 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
             }
         }
 
-        const handleAddEntry = async () => {
-            if (!newEntry.trim()) return
-
-            try {
-                const entry = await entriesApi.createEntry({
-                    content: newEntry.trim(),
-                    topic_id: selectedTopicId
-                })
-                setEntries([entry, ...entries])
-                setNewEntry('')
-            } catch (err) {
-                console.error('Error creating entry:', err)
-                // TODO: Show error notification
-            }
-        }
-
         const handleDragStart = (e: DragEvent<HTMLDivElement>, entry: Entry) => {
             e.dataTransfer.setData('application/json', JSON.stringify(entry))
             e.dataTransfer.effectAllowed = 'move'
-            
+
             // Set custom drag image
             const dragImage = document.createElement('div')
             dragImage.className = 'p-2 bg-white dark:bg-gray-800 rounded shadow-lg'
             dragImage.textContent = entry.content.slice(0, 50) + (entry.content.length > 50 ? '...' : '')
             document.body.appendChild(dragImage)
-            
+
             e.dataTransfer.setDragImage(dragImage, 0, 0)
-            
+
             requestAnimationFrame(() => {
                 document.body.removeChild(dragImage)
             })
-            
+
             if (e.currentTarget.classList) {
                 e.currentTarget.classList.add('opacity-50')
             }
 
             // Dispatch custom event with entry data
-            const event = new CustomEvent('entryDragStart', { 
-                detail: entry 
+            const event = new CustomEvent('entryDragStart', {
+                detail: entry
             })
             document.dispatchEvent(event)
         }
@@ -183,11 +166,10 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                                 <div className="flex space-x-8">
                                     <button
                                         onClick={() => setActiveTab('entries')}
-                                        className={`py-4 px-2 relative ${
-                                            activeTab === 'entries'
-                                                ? 'text-blue-500 dark:text-blue-400'
-                                                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-                                        }`}
+                                        className={`py-4 px-2 relative ${activeTab === 'entries'
+                                            ? 'text-blue-500 dark:text-blue-400'
+                                            : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                                            }`}
                                     >
                                         <span>Entries</span>
                                         {activeTab === 'entries' && (
@@ -196,11 +178,10 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                                     </button>
                                     <button
                                         onClick={() => setActiveTab('summary')}
-                                        className={`py-4 px-2 relative ${
-                                            activeTab === 'summary'
-                                                ? 'text-blue-500 dark:text-blue-400'
-                                                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-                                        }`}
+                                        className={`py-4 px-2 relative ${activeTab === 'summary'
+                                            ? 'text-blue-500 dark:text-blue-400'
+                                            : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                                            }`}
                                     >
                                         <span>Summary</span>
                                         {activeTab === 'summary' && (
@@ -209,11 +190,10 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                                     </button>
                                     <button
                                         onClick={() => setActiveTab('notes')}
-                                        className={`py-4 px-2 relative ${
-                                            activeTab === 'notes'
-                                                ? 'text-blue-500 dark:text-blue-400'
-                                                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-                                        }`}
+                                        className={`py-4 px-2 relative ${activeTab === 'notes'
+                                            ? 'text-blue-500 dark:text-blue-400'
+                                            : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                                            }`}
                                     >
                                         <span>Notes</span>
                                         {activeTab === 'notes' && (
@@ -249,8 +229,8 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                                                     title="Delete entry"
                                                 >
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                                                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                                     </svg>
                                                 </button>
                                             </div>

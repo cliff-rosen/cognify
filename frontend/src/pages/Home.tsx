@@ -1,5 +1,4 @@
 import { useAuth } from '../context/AuthContext'
-import { useTheme } from '../context/ThemeContext'
 import TopBar from '../components/home/TopBar'
 import LeftSidebar from '../components/home/LeftSidebar'
 import CenterWorkspace from '../components/home/CenterWorkspace'
@@ -8,8 +7,8 @@ import { useState, useRef } from 'react'
 import { Entry } from '../lib/api/entriesApi'
 import { Topic } from '../lib/api/topicsApi'
 
-export default function Home() {
-    const { isAuthenticated, user, login, register, error } = useAuth()
+export default function HomeComponent() {
+    const { isAuthenticated, login, register, error } = useAuth()
     const [topics, setTopics] = useState<Topic[]>([])
     const [selectedTopicId, setSelectedTopicId] = useState<number | null>(null)
     const centerWorkspaceRef = useRef<{ refreshEntries: () => void } | null>(null)
@@ -19,7 +18,7 @@ export default function Home() {
         email: '',
         password: '',
     })
-    const [messageType, setMessageType] = useState<'success' | 'error' | null>(null)
+
 
     const handleEntryAdded = (entry: Entry) => {
         if (!selectedTopicId || entry.topic_id === selectedTopicId) {
@@ -69,11 +68,10 @@ export default function Home() {
                     </div>
 
                     {error && (
-                        <div className={`border px-4 py-3 rounded relative ${
-                            error.includes('successful') 
-                                ? 'bg-green-100 border-green-400 text-green-700' 
-                                : 'bg-red-100 border-red-400 text-red-700'
-                        }`}>
+                        <div className={`border px-4 py-3 rounded relative ${error.includes('successful')
+                            ? 'bg-green-100 border-green-400 text-green-700'
+                            : 'bg-red-100 border-red-400 text-red-700'
+                            }`}>
                             {error}
                         </div>
                     )}
@@ -123,8 +121,8 @@ export default function Home() {
                             onClick={() => setIsRegistering(!isRegistering)}
                             className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500"
                         >
-                            {isRegistering 
-                                ? 'Already have an account? Sign in' 
+                            {isRegistering
+                                ? 'Already have an account? Sign in'
                                 : 'Need an account? Register'}
                         </button>
                     </div>
@@ -158,12 +156,12 @@ export default function Home() {
                 {/* Center Content */}
                 <main className={`flex-1 min-w-0 overflow-hidden flex`}>
                     <div className="flex-1">
-                        <CenterWorkspace 
+                        <CenterWorkspace
                             ref={centerWorkspaceRef}
-                            selectedTopicId={selectedTopicId} 
+                            selectedTopicId={selectedTopicId}
                         />
                     </div>
-                    
+
                     {/* Toggle Button */}
                     <div className="flex-none border-l border-gray-200 dark:border-gray-700 flex items-center">
                         <button
@@ -171,17 +169,17 @@ export default function Home() {
                             className="p-1 -ml-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full shadow"
                             title={showRightSidebar ? "Hide AI Assistant" : "Show AI Assistant"}
                         >
-                            <svg 
-                                className="w-4 h-4 text-gray-600 dark:text-gray-300" 
-                                fill="none" 
-                                stroke="currentColor" 
+                            <svg
+                                className="w-4 h-4 text-gray-600 dark:text-gray-300"
+                                fill="none"
+                                stroke="currentColor"
                                 viewBox="0 0 24 24"
                             >
-                                <path 
-                                    strokeLinecap="round" 
-                                    strokeLinejoin="round" 
-                                    strokeWidth={2} 
-                                    d={showRightSidebar 
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d={showRightSidebar
                                         ? "M9 5l7 7-7 7"  // chevron-right when sidebar is visible
                                         : "M15 19l-7-7 7-7" // chevron-left when sidebar is hidden
                                     }
