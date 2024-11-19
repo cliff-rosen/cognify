@@ -1,6 +1,7 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { topicsApi, Topic } from '../../lib/api/topicsApi'
 import { entriesApi, Entry } from '../../lib/api/entriesApi'
+import { DragEvent } from 'react'
 
 interface CenterWorkspaceProps {
     selectedTopicId: number | null;
@@ -73,6 +74,40 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
             } catch (err) {
                 console.error('Error creating entry:', err)
                 // TODO: Show error notification
+            }
+        }
+
+        const handleDragStart = (e: DragEvent<HTMLDivElement>, entry: Entry) => {
+            e.dataTransfer.setData('application/json', JSON.stringify(entry))
+            e.dataTransfer.effectAllowed = 'move'
+            
+            // Set custom drag image
+            const dragImage = document.createElement('div')
+            dragImage.className = 'p-2 bg-white dark:bg-gray-800 rounded shadow-lg'
+            dragImage.textContent = entry.content.slice(0, 50) + (entry.content.length > 50 ? '...' : '')
+            document.body.appendChild(dragImage)
+            
+            e.dataTransfer.setDragImage(dragImage, 0, 0)
+            
+            requestAnimationFrame(() => {
+                document.body.removeChild(dragImage)
+            })
+            
+            if (e.currentTarget.classList) {
+                e.currentTarget.classList.add('opacity-50')
+            }
+
+            // Dispatch custom event with entry data
+            const event = new CustomEvent('entryDragStart', { 
+                detail: entry 
+            })
+            document.dispatchEvent(event)
+        }
+
+        const handleDragEnd = (e: DragEvent<HTMLDivElement>) => {
+            // Remove visual effect
+            if (e.currentTarget.classList) {
+                e.currentTarget.classList.remove('opacity-50')
             }
         }
 
@@ -196,7 +231,10 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                                     {entries.map(entry => (
                                         <div
                                             key={entry.entry_id}
-                                            className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow group relative"
+                                            className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow group relative cursor-move"
+                                            draggable="true"
+                                            onDragStart={(e) => handleDragStart(e, entry)}
+                                            onDragEnd={handleDragEnd}
                                         >
                                             <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
                                                 {entry.content}

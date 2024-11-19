@@ -53,6 +53,9 @@ export default function Home() {
                         selectedTopicId={selectedTopicId}
                         topics={topics}
                         onTopicsChange={setTopics}
+                        onEntryMoved={() => {
+                            centerWorkspaceRef.current?.refreshEntries()
+                        }}
                     />
                 </aside>
 

@@ -1,18 +1,22 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Topic, topicsApi } from '../../lib/api/topicsApi'
+import { DragEvent } from 'react'
+import { Entry, entriesApi } from '../../lib/api/entriesApi'
 
 interface LeftSidebarProps {
     onSelectTopic: (topicId: number | null) => void;
     selectedTopicId: number | null;
     topics: Topic[];
     onTopicsChange: (topics: Topic[]) => void;
+    onEntryMoved?: () => void;
 }
 
 const LeftSidebar: React.FC<LeftSidebarProps> = ({ 
     onSelectTopic, 
     selectedTopicId, 
     topics, 
-    onTopicsChange
+    onTopicsChange, 
+    onEntryMoved
 }) => {
     const [isLoading, setIsLoading] = useState(false)
     const [editingTopicId, setEditingTopicId] = useState<number | null>(null)
@@ -20,6 +24,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
     const [isCreating, setIsCreating] = useState(false)
     const [newTopicName, setNewTopicName] = useState('')
     const [topicToDelete, setTopicToDelete] = useState<Topic | null>(null)
+    const draggedEntryRef = useRef<Entry | null>(null)
 
     useEffect(() => {
         fetchTopics()
@@ -107,6 +112,68 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
         }
     }
 
+    const handleDragOver = (e: DragEvent<HTMLDivElement>, topicId: number | null) => {
+        if (!e.dataTransfer.types.includes('application/json')) {
+            return
+        }
+        
+        // Check if dragging to same topic using the ref
+        if (draggedEntryRef.current?.topic_id === topicId) {
+            return
+        }
+        
+        e.preventDefault()
+        if (e.currentTarget.classList) {
+            e.currentTarget.classList.add('bg-blue-50', 'dark:bg-blue-900/30')
+        }
+    }
+
+    const handleDragLeave = (e: DragEvent<HTMLDivElement>) => {
+        if (e.currentTarget.classList) {
+            e.currentTarget.classList.remove('bg-blue-50', 'dark:bg-blue-900/30')
+        }
+    }
+
+    const handleDrop = async (e: DragEvent<HTMLDivElement>, topicId: number | null) => {
+        e.preventDefault()
+        
+        if (e.currentTarget.classList) {
+            e.currentTarget.classList.remove('bg-blue-50', 'dark:bg-blue-900/30')
+        }
+
+        try {
+            const entryData = e.dataTransfer.getData('application/json')
+            const entry: Entry = JSON.parse(entryData)
+            
+            if (entry.topic_id === topicId) return
+
+            await entriesApi.moveEntryToTopic(entry.entry_id, topicId)
+            
+            if (onEntryMoved && (
+                selectedTopicId === null || 
+                selectedTopicId === entry.topic_id || 
+                selectedTopicId === topicId
+            )) {
+                onEntryMoved()
+            }
+        } catch (error) {
+            console.error('Error moving entry:', error)
+        } finally {
+            draggedEntryRef.current = null  // Clear the ref
+        }
+    }
+
+    // Add event listener for drag enter
+    useEffect(() => {
+        const handleDragStart = (e: CustomEvent<Entry>) => {
+            draggedEntryRef.current = e.detail
+        }
+
+        // TypeScript needs the 'as any' because CustomEvent<Entry> isn't a standard event type
+        document.addEventListener('entryDragStart', handleDragStart as any)
+        return () => document.removeEventListener('entryDragStart', handleDragStart as any)
+    }, [])
+
     if (isLoading) {
         return (
             <div className="p-4 text-gray-500 dark:text-gray-400">
@@ -137,6 +204,9 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                                       hover:bg-gray-100 dark:hover:bg-gray-700
                                       ${selectedTopicId === null ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
                             onClick={() => onSelectTopic(null)}
+                            onDragOver={(e) => handleDragOver(e, null)}
+                            onDragLeave={handleDragLeave}
+                            onDrop={(e) => handleDrop(e, null)}
                         >
                             <span className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
                                 <svg 
@@ -207,12 +277,20 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                                     className={`flex items-center justify-between p-2 rounded-lg cursor-pointer
                                               hover:bg-gray-100 dark:hover:bg-gray-700
                                               ${selectedTopicId === topic.topic_id ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
+                                    onDragOver={(e) => handleDragOver(e, topic.topic_id)}
+                                    onDragLeave={handleDragLeave}
+                                    onDrop={(e) => handleDrop(e, topic.topic_id)}
                                 >
                                     <span
                                         onClick={() => onSelectTopic(topic.topic_id)}
-                                        className="flex-1 text-gray-700 dark:text-gray-300"
+                                        className="flex-1 text-gray-700 dark:text-gray-300 flex justify-between items-center"
                                     >
-                                        {topic.topic_name}
+                                        <span>{topic.topic_name}</span>
+                                        {topic.entry_count !== undefined && (
+                                            <span className="text-sm text-gray-500 dark:text-gray-400">
+                                                {topic.entry_count}
+                                            </span>
+                                        )}
                                     </span>
                                     <div className="flex items-center gap-1">
                                         <button
