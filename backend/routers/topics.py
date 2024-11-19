@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 from typing import List
 from database import get_db
-from schemas import TopicResponse, TopicCreate, TopicUpdate, TopicSearchResponse
+from schemas import TopicResponse, TopicCreate, TopicUpdate, TopicSearchResponse, TopicSuggestionResponse
 from dependencies import CurrentUser
 from models import Topic
 from services import topic_service, auth_service
@@ -167,4 +167,70 @@ async def delete_topic(
     logger.info(f"delete_topic endpoint called for topic_id: {topic_id}")
     await topic_service.delete_topic(db, topic_id, current_user.user_id)
     return None
+
+@router.post(
+    "/suggest",
+    response_model=TopicSuggestionResponse,
+    summary="Suggest a topic name based on entry text",
+    responses={
+        200: {
+            "description": "Topic name suggestion successfully generated",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "suggested_name": "Machine Learning"
+                    }
+                }
+            }
+        },
+        401: {"description": "Not authenticated"},
+        422: {"description": "Validation error"}
+    }
+)
+async def suggest_topic_name(
+    text: str,
+    current_user = Depends(auth_service.validate_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Generate a topic name suggestion based on entry text
+    
+    Parameters:
+    - **text**: The entry text to analyze for topic suggestion
+    """
+    logger.info("suggest_topic_name endpoint called")
+    return await topic_service.suggest_topic_name(db, text, current_user.user_id)
+
+@router.get(
+    "/suggestions",
+    response_model=List[TopicSearchResponse],
+    summary="Get topic suggestions and search results",
+    responses={
+        200: {
+            "description": "Combined list of topic suggestions and search results",
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "array",
+                        "items": {"$ref": "#/components/schemas/TopicSearchResponse"}
+                    }
+                }
+            }
+        },
+        401: {"description": "Not authenticated"}
+    }
+)
+async def get_topic_suggestions(
+    text: str,
+    current_user = Depends(auth_service.validate_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Get combined topic suggestions and search results
+    
+    Parameters:
+    - **text**: The text to analyze for suggestions and search
+    """
+    logger.info("get_topic_suggestions endpoint called")
+    return await topic_service.get_topic_suggestions(db, text, current_user.user_id)
 

@@ -1,10 +1,11 @@
 from sqlalchemy.orm import Session
 from models import Topic, Entry
-from schemas import TopicCreate, TopicUpdate, TopicSearchResponse
+from schemas import TopicCreate, TopicUpdate, TopicSearchResponse, TopicSuggestionResponse
 from fastapi import HTTPException, status
 from typing import Optional, List
 import logging
 from services import ai_service
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -156,3 +157,60 @@ async def delete_topic(db: Session, topic_id: int, user_id: int):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete topic"
         )
+
+
+async def suggest_topic_name(db: Session, text: str, user_id: int) -> dict:
+    """
+    Suggests a topic name based on the provided text using AI.
+    Uses the AI service to generate a concise, relevant topic name.
+    """
+    try:
+        # Use AI service to generate topic suggestion
+        suggested_name = await ai_service.suggest_topic_name(text)
+        
+        # Ensure the suggestion isn't too long
+        if len(suggested_name) > 50:
+            suggested_name = suggested_name[:47] + "..."
+            
+        return {"suggested_name": suggested_name}
+        
+    except Exception as e:
+        logger.error(f"Error suggesting topic name: {str(e)}")
+        return {"suggested_name": "New Topic"}
+
+
+async def get_topic_suggestions(db: Session, text: str, user_id: int) -> List[TopicSearchResponse]:
+    try:
+        results = []
+        
+        # 1. Get user's existing topics
+        existing_topics = db.query(Topic).filter(Topic.user_id == user_id).all()
+        existing_topic_names = [topic.topic_name.lower() for topic in existing_topics]
+        
+        # 2. Get AI suggestion considering existing topics
+        suggested_name = await ai_service.suggest_topic_name_with_context(text, existing_topic_names)
+        suggested_name_lower = suggested_name.lower() if suggested_name else ""
+        
+        # 3. Add AI suggestion only if valid and doesn't match existing topics
+        if (suggested_name and 
+            suggested_name != "New Topic" and 
+            suggested_name_lower not in existing_topic_names):
+            results.append(TopicSearchResponse(
+                topic_id=-1,
+                topic_name=suggested_name,
+                user_id=user_id,
+                creation_date=datetime.utcnow(),
+                score=1.0,
+                is_ai_suggested=True,
+                is_new_topic=True
+            ))
+
+        # 4. Get and add similar existing topics
+        similar_topics = await search_topics(db, text, user_id)
+        results.extend(similar_topics)
+
+        return results
+        
+    except Exception as e:
+        logger.error(f"Error getting topic suggestions: {str(e)}")
+        return []

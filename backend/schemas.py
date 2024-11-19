@@ -71,9 +71,13 @@ class TopicList(BaseModel):
 
 class TopicSearchResponse(TopicResponse):
     score: float
+    is_ai_suggested: bool = False
+    is_new_topic: bool = False
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
+
+class TopicSuggestionResponse(BaseModel):
+    suggested_name: str
 
 # Entry Schemas
 class EntryCreate(BaseModel):
