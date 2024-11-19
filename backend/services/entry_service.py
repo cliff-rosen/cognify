@@ -97,9 +97,10 @@ async def update_entry(db: Session, entry_id: int, entry_update: EntryUpdate, us
             if not topic:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Topic not found or does not belong to user"
+                    detail="Target topic not found or does not belong to user"
                 )
             db_entry.topic_id = entry_update.topic_id
+            logger.info(f"Moved entry {entry_id} to topic {entry_update.topic_id}")
             
         # Update content if provided
         if entry_update.content is not None:
@@ -107,7 +108,6 @@ async def update_entry(db: Session, entry_id: int, entry_update: EntryUpdate, us
             
         db.commit()
         db.refresh(db_entry)
-        logger.info(f"Updated entry {entry_id} for user {user_id}")
         return db_entry
         
     except HTTPException as e:
