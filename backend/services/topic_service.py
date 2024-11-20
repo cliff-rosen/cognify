@@ -217,78 +217,125 @@ async def get_topic_suggestions(db: Session, text: str, user_id: int) -> List[To
         return []
 
 
-async def analyze_categorization(db: Session, user_id: int) -> AutoCategorizeResponse:
-    """
-    Analyze all entries and propose a new categorization structure.
-    This is a test implementation that randomly assigns entries to topics.
-    """
+async def analyze_categorization(
+    db: Session, 
+    user_id: int, 
+    instructions: Optional[str] = None,
+    topics_to_keep: List[int] = []
+) -> AutoCategorizeResponse:
     try:
+        logger.info(f"Starting analyze_categorization for user {user_id}")
+        if instructions:
+            logger.info(f"Instructions provided: {instructions}")
+        if topics_to_keep:
+            logger.info(f"Topics to keep: {topics_to_keep}")
+
         # Get all entries for the user
         entries = db.query(Entry).filter(Entry.user_id == user_id).all()
-        
+        logger.info(f"Found {len(entries)} total entries")
+
         # Get all existing topics
         existing_topics = db.query(Topic).filter(Topic.user_id == user_id).all()
+        logger.info(f"Found {len(existing_topics)} existing topics")
 
-        # Create some mock new topics
-        new_topic_names = ["AI and Machine Learning", "Web Development", "Personal Growth"]
-        
-        # Initialize proposed topics list with existing topics
-        mock_proposed_topics = [
+        # Separate topics into keep and recategorize
+        topics_to_keep_set = set(topics_to_keep)
+        kept_topics = [topic for topic in existing_topics if topic.topic_id in topics_to_keep_set]
+        other_topics = [topic for topic in existing_topics if topic.topic_id not in topics_to_keep_set]
+        logger.info(f"Keeping {len(kept_topics)} topics, {len(other_topics)} topics available for recategorization")
+
+        # Initialize proposed topics list with kept topics
+        proposed_topics = [
             ProposedTopic(
                 topic_id=topic.topic_id,
                 topic_name=topic.topic_name,
                 is_new=False,
-                entries=[],  # We'll fill this later
-                confidence_score=0.95
+                entries=[],
+                confidence_score=1.0
             )
-            for topic in existing_topics
+            for topic in kept_topics
         ]
+        logger.info(f"Initialized {len(proposed_topics)} kept topics in proposal list")
 
-        # Add mock new topics
-        mock_proposed_topics.extend([
-            ProposedTopic(
-                topic_id=None,
-                topic_name=name,
-                is_new=True,
-                entries=[],  # We'll fill this later
-                confidence_score=0.85
-            )
-            for name in new_topic_names
-        ])
-
-        # Randomly assign entries to topics
+        # First, handle entries in kept topics
+        kept_entries = []
         for entry in entries:
-            # Randomly select a topic
-            proposed_topic = random.choice(mock_proposed_topics)
+            if entry.topic_id in topics_to_keep_set:
+                kept_topic = next(t for t in proposed_topics if t.topic_id == entry.topic_id)
+                proposed_entry = ProposedEntry(
+                    entry_id=entry.entry_id,
+                    content=entry.content,
+                    current_topic_id=entry.topic_id,
+                    proposed_topic_id=entry.topic_id,
+                    creation_date=entry.creation_date,
+                    confidence_score=1.0
+                )
+                kept_topic.entries.append(proposed_entry)
+                kept_entries.append(entry.entry_id)
+        logger.info(f"Kept {len(kept_entries)} entries in their original topics")
+
+        # Create new topics only if we have entries to reassign
+        remaining_entries = [e for e in entries if e.entry_id not in kept_entries]
+        if remaining_entries:
+            new_topic_names = ["AI and Machine Learning", "Web Development", "Personal Growth"]
+            logger.info(f"Creating {len(new_topic_names)} new topics for {len(remaining_entries)} remaining entries")
             
-            # Create proposed entry
-            proposed_entry = ProposedEntry(
-                entry_id=entry.entry_id,
-                content=entry.content,
-                current_topic_id=entry.topic_id,
-                proposed_topic_id=proposed_topic.topic_id,  # Will be None for new topics
-                creation_date=entry.creation_date,
-                confidence_score=random.uniform(0.65, 0.98)  # Random confidence score
-            )
-            
-            # Add entry to the topic's entries list
-            proposed_topic.entries.append(proposed_entry)
+            # Add new topics
+            proposed_topics.extend([
+                ProposedTopic(
+                    topic_id=None,
+                    topic_name=name,
+                    is_new=True,
+                    entries=[],
+                    confidence_score=0.85
+                )
+                for name in new_topic_names
+            ])
+
+            # Randomly assign remaining entries to new topics
+            new_topics = [t for t in proposed_topics if t.is_new]
+            for entry in remaining_entries:
+                proposed_topic = random.choice(new_topics)
+                confidence_score = random.uniform(0.65, 0.98)
+                
+                logger.debug(f"Assigning entry {entry.entry_id} to new topic '{proposed_topic.topic_name}' "
+                           f"(current_topic_id: {entry.topic_id}, "
+                           f"confidence: {confidence_score:.2f})")
+                
+                proposed_entry = ProposedEntry(
+                    entry_id=entry.entry_id,
+                    content=entry.content,
+                    current_topic_id=entry.topic_id,
+                    proposed_topic_id=proposed_topic.topic_id,
+                    creation_date=entry.creation_date,
+                    confidence_score=confidence_score
+                )
+                
+                proposed_topic.entries.append(proposed_entry)
 
         # Filter out topics with no entries
-        mock_proposed_topics = [topic for topic in mock_proposed_topics if topic.entries]
+        # original_topic_count = len(proposed_topics)
+        # proposed_topics = [topic for topic in proposed_topics if topic.entries]
+        # logger.info(f"Filtered out {original_topic_count - len(proposed_topics)} empty topics")
 
         # Set topic confidence scores based on average entry confidence
-        for topic in mock_proposed_topics:
-            if topic.entries:
+        for topic in proposed_topics:
+            if topic.entries and topic.is_new:  # Only calculate for new topics
                 topic.confidence_score = sum(e.confidence_score for e in topic.entries) / len(topic.entries)
+                logger.debug(f"Topic '{topic.topic_name}' confidence score: {topic.confidence_score:.2f} "
+                           f"(based on {len(topic.entries)} entries)")
+
+        logger.info("Analysis complete. Returning results with "
+                   f"{len(proposed_topics)} topics containing entries")
 
         return AutoCategorizeResponse(
-            proposed_topics=mock_proposed_topics,
-            uncategorized_entries=[]  # Always empty now
+            proposed_topics=proposed_topics,
+            uncategorized_entries=[],
+            instructions_used=instructions
         )
 
     except Exception as e:
-        logger.error(f"Error in analyze_categorization: {str(e)}")
+        logger.error(f"Error in analyze_categorization: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to analyze categorization"

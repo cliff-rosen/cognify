@@ -30,6 +30,7 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
         const [proposedTopics, setProposedTopics] = useState<ProposedTopic[]>([])
         const [uncategorizedEntries, setUncategorizedEntries] = useState<ProposedEntry[]>([])
         const [isAnalyzing, setIsAnalyzing] = useState(false)
+        const [categorizeInstructions, setCategorizeInstructions] = useState<string>('')
 
         const fetchEntries = async () => {
             try {
@@ -126,7 +127,10 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
         const handleStartAutoCategorization = async () => {
             try {
                 setIsAnalyzing(true)
-                const result = await topicsApi.analyzeCategorization()
+                const result = await topicsApi.analyzeCategorization({
+                    instructions: categorizeInstructions.trim() || undefined,
+                    topics_to_keep: Array.from(selectedExistingTopics)
+                })
                 setProposedTopics(result.proposed_topics)
                 setUncategorizedEntries(result.uncategorized_entries)
                 setEntriesTab('proposed')  // Switch to proposed view
@@ -426,6 +430,31 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                                         </div>
                                     </div>
                                 )}
+                            </div>
+
+                            {/* Instructions Input */}
+                            <div className="px-6 pb-6">
+                                <div className="bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 p-4">
+                                    <label 
+                                        htmlFor="instructions" 
+                                        className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                                    >
+                                        Instructions (Optional)
+                                    </label>
+                                    <textarea
+                                        id="instructions"
+                                        value={categorizeInstructions}
+                                        onChange={(e) => setCategorizeInstructions(e.target.value)}
+                                        placeholder="Enter any specific instructions for how you want your entries categorized..."
+                                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg 
+                                                 focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                                                 dark:bg-gray-800 dark:text-white resize-none"
+                                        rows={3}
+                                    />
+                                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                        Examples: "Keep technical and personal topics separate" or "Create detailed subcategories for programming topics"
+                                    </p>
+                                </div>
                             </div>
 
                             {/* Modal Content */}

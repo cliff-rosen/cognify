@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 from typing import List
 from database import get_db
-from schemas import TopicResponse, TopicCreate, TopicUpdate, TopicSearchResponse, TopicSuggestionResponse, AutoCategorizeResponse
+from schemas import TopicResponse, TopicCreate, TopicUpdate, TopicSearchResponse, TopicSuggestionResponse, AutoCategorizeResponse, AutoCategorizeRequest
 from dependencies import CurrentUser
 from models import Topic
 from services import topic_service, auth_service
@@ -288,13 +288,23 @@ async def get_topic_suggestions(
     }
 )
 async def analyze_categorization(
+    request: AutoCategorizeRequest,
     current_user = Depends(auth_service.validate_token),
     db: Session = Depends(get_db)
 ):
     """
     Analyze all entries and propose a new categorization structure.
     Returns existing topics to keep, suggested new topics, and proposed entry assignments.
+    
+    Parameters:
+    - instructions: Optional instructions to guide the categorization process
+    - topics_to_keep: List of topic IDs to preserve
     """
     logger.info(f"analyze_categorization called for user {current_user.user_id}")
-    return await topic_service.analyze_categorization(db, current_user.user_id)
+    return await topic_service.analyze_categorization(
+        db, 
+        current_user.user_id, 
+        request.instructions,
+        request.topics_to_keep
+    )
 

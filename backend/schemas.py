@@ -173,9 +173,21 @@ class ProposedTopic(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class AutoCategorizeRequest(BaseModel):
+    """Schema for the auto-categorization analysis request"""
+    instructions: Optional[str] = Field(
+        default=None,
+        description="Optional instructions to guide the categorization process"
+    )
+    topics_to_keep: List[int] = Field(
+        default=[],
+        description="List of topic IDs that should be preserved"
+    )
+
 class AutoCategorizeResponse(BaseModel):
     """Schema for the auto-categorization analysis response"""
     proposed_topics: List[ProposedTopic]
     uncategorized_entries: List[ProposedEntry]
+    instructions_used: Optional[str] = None
     
     model_config = ConfigDict(from_attributes=True)
