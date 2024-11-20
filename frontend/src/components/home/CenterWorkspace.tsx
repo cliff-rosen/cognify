@@ -1,5 +1,5 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react'
-import { Topic, UNCATEGORIZED_TOPIC_ID, ProposedTopic, ProposedEntry } from '../../lib/api/topicsApi'
+import { Topic, UNCATEGORIZED_TOPIC_ID } from '../../lib/api/topicsApi'
 import { entriesApi, Entry } from '../../lib/api/entriesApi'
 import { topicsApi } from '../../lib/api/topicsApi'
 import { DragEvent } from 'react'
@@ -23,8 +23,7 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
         const [entryToDelete, setEntryToDelete] = useState<Entry | null>(null)
         const [showAutoCategorizeModal, setShowAutoCategorizeModal] = useState(false)
         const [allTopics, setAllTopics] = useState<Topic[]>([])
-        const [isLoadingTopics, setIsLoadingTopics] = useState(false)
-        const [categorizeInstructions, setCategorizeInstructions] = useState<string>('')
+        const [_isLoadingTopics, setIsLoadingTopics] = useState(false)
 
         const fetchEntries = async () => {
             try {
@@ -345,7 +344,7 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
 
                 {/* Auto-categorize Wizard */}
                 {showAutoCategorizeModal && (
-                    <AutoCategorizeWizard 
+                    <AutoCategorizeWizard
                         topics={allTopics}
                         onClose={() => setShowAutoCategorizeModal(false)}
                         onComplete={async () => {

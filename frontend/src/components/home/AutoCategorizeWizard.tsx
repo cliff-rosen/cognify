@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Topic, ProposedTopic, ProposedEntry, AutoCategorizeResponse } from '../../lib/api/topicsApi';
+import { Topic, ProposedEntry, AutoCategorizeResponse } from '../../lib/api/topicsApi';
 import { topicsApi } from '../../lib/api/topicsApi';
 
 interface AutoCategorizeWizardProps {
@@ -22,9 +22,9 @@ const AutoCategorizeWizard: React.FC<AutoCategorizeWizardProps> = ({ topics, onC
     const [isLoading, setIsLoading] = useState(false);
 
     const handleTopicToggle = (topicId: number) => {
-        setSelectedTopics(prev => 
-            prev.map(topic => 
-                topic.topic_id === topicId 
+        setSelectedTopics(prev =>
+            prev.map(topic =>
+                topic.topic_id === topicId
                     ? { ...topic, isSelected: !topic.isSelected }
                     : topic
             )
@@ -40,7 +40,7 @@ const AutoCategorizeWizard: React.FC<AutoCategorizeWizardProps> = ({ topics, onC
                     .map(t => t.topic_id),
                 instructions: instructions || undefined,
             });
-            
+
             setProposedChanges(data);
             setStep(2);
         } catch (error) {
@@ -59,7 +59,7 @@ const AutoCategorizeWizard: React.FC<AutoCategorizeWizardProps> = ({ topics, onC
     const getChangeDescription = (entry: ProposedEntry) => {
         const fromTopic = getTopicName(entry.current_topic_id);
         const toTopic = getTopicName(entry.proposed_topic_id);
-        
+
         if (fromTopic === toTopic) return 'No change';
         return `${fromTopic} → ${toTopic}`;
     };
@@ -75,7 +75,7 @@ const AutoCategorizeWizard: React.FC<AutoCategorizeWizardProps> = ({ topics, onC
                 </p>
                 <div className="space-y-2">
                     {selectedTopics.map(topic => (
-                        <div 
+                        <div
                             key={topic.topic_id}
                             className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
                         >
@@ -130,7 +130,7 @@ const AutoCategorizeWizard: React.FC<AutoCategorizeWizardProps> = ({ topics, onC
                 <h3 className="text-lg font-medium mb-4 dark:text-gray-200">
                     Step 2: Review Proposed Changes
                 </h3>
-                
+
                 {/* Summary */}
                 <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
                     <h4 className="font-medium mb-2 dark:text-gray-200">Summary of Changes</h4>
@@ -143,7 +143,7 @@ const AutoCategorizeWizard: React.FC<AutoCategorizeWizardProps> = ({ topics, onC
                 {/* Topics and their entries */}
                 <div className="space-y-6">
                     {proposedChanges.proposed_topics.map((topic) => (
-                        <div 
+                        <div
                             key={topic.topic_id || topic.topic_name}
                             className="border dark:border-gray-700 rounded-lg overflow-hidden"
                         >
@@ -165,7 +165,7 @@ const AutoCategorizeWizard: React.FC<AutoCategorizeWizardProps> = ({ topics, onC
 
                             <div className="divide-y dark:divide-gray-700">
                                 {topic.entries.map((entry) => (
-                                    <div 
+                                    <div
                                         key={entry.entry_id}
                                         className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700"
                                     >
@@ -209,8 +209,38 @@ const AutoCategorizeWizard: React.FC<AutoCategorizeWizardProps> = ({ topics, onC
             <h3 className="text-lg font-medium mb-4 dark:text-gray-200">
                 Step 3: Confirm Changes
             </h3>
-            {/* We'll implement this in the next iteration */}
-            <div className="text-center">Coming soon...</div>
+            <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                <p className="text-gray-600 dark:text-gray-300 mb-4">
+                    Are you sure you want to apply these changes? This will:
+                </p>
+                <ul className="list-disc list-inside space-y-2 text-gray-600 dark:text-gray-300">
+                    <li>Create {proposedChanges?.proposed_topics.filter(t => t.is_new).length} new topics</li>
+                    <li>Move {proposedChanges?.proposed_topics.reduce((sum, topic) => sum + topic.entries.length, 0)} entries</li>
+                </ul>
+            </div>
+
+            <div className="flex justify-between pt-4">
+                <button
+                    onClick={() => setStep(2)}
+                    className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                >
+                    Back
+                </button>
+                <div className="space-x-3">
+                    <button
+                        onClick={onClose}
+                        className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={onComplete}
+                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    >
+                        Apply Changes
+                    </button>
+                </div>
+            </div>
         </div>
     );
 
@@ -231,26 +261,23 @@ const AutoCategorizeWizard: React.FC<AutoCategorizeWizardProps> = ({ topics, onC
                         {[1, 2, 3].map((stepNum) => (
                             <div
                                 key={stepNum}
-                                className={`flex items-center ${
-                                    stepNum < 3 ? 'flex-1' : ''
-                                }`}
+                                className={`flex items-center ${stepNum < 3 ? 'flex-1' : ''
+                                    }`}
                             >
                                 <div
-                                    className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                                        step >= stepNum
+                                    className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= stepNum
                                             ? 'bg-blue-600 text-white'
                                             : 'bg-gray-200 text-gray-600'
-                                    }`}
+                                        }`}
                                 >
                                     {stepNum}
                                 </div>
                                 {stepNum < 3 && (
                                     <div
-                                        className={`flex-1 h-1 mx-2 ${
-                                            step > stepNum
+                                        className={`flex-1 h-1 mx-2 ${step > stepNum
                                                 ? 'bg-blue-600'
                                                 : 'bg-gray-200'
-                                        }`}
+                                            }`}
                                     />
                                 )}
                             </div>
