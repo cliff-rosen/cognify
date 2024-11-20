@@ -59,9 +59,11 @@ const AutoCategorizeWizard: React.FC<AutoCategorizeWizardProps> = ({ topics, onC
     const getChangeDescription = (entry: ProposedEntry) => {
         const fromTopic = getTopicName(entry.current_topic_id);
         const toTopic = getTopicName(entry.proposed_topic_id);
-
-        if (fromTopic === toTopic) return 'No change';
-        return `${fromTopic} → ${toTopic}`;
+        
+        return {
+            from: fromTopic,
+            isChange: fromTopic !== toTopic
+        };
     };
 
     const renderStep1 = () => (
@@ -171,9 +173,20 @@ const AutoCategorizeWizard: React.FC<AutoCategorizeWizardProps> = ({ topics, onC
                                     >
                                         <div className="text-sm mb-2 dark:text-gray-200">{entry.content}</div>
                                         <div className="flex justify-between items-center text-sm">
-                                            <span className="text-gray-500 dark:text-gray-400">
-                                                {getChangeDescription(entry)}
-                                            </span>
+                                            <div className="text-gray-500 dark:text-gray-400">
+                                                {(() => {
+                                                    const change = getChangeDescription(entry);
+                                                    if (!change.isChange) {
+                                                        return 'No change';
+                                                    }
+                                                    return (
+                                                        <span>
+                                                            <span className="text-yellow-600 dark:text-yellow-400">Moved from: </span>
+                                                            {change.from}
+                                                        </span>
+                                                    );
+                                                })()}
+                                            </div>
                                             <span className="text-gray-500 dark:text-gray-400">
                                                 {Math.round(entry.confidence_score * 100)}% confidence
                                             </span>
