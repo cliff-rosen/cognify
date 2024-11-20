@@ -1,11 +1,12 @@
 from sqlalchemy.orm import Session
 from models import Topic, Entry
-from schemas import TopicCreate, TopicUpdate, TopicSearchResponse, TopicSuggestionResponse
+from schemas import TopicCreate, TopicUpdate, TopicSearchResponse, TopicSuggestionResponse, ProposedEntry, ProposedTopic, AutoCategorizeResponse
 from fastapi import HTTPException, status
 from typing import Optional, List
 import logging
 from services import ai_service
 from datetime import datetime
+import random
 
 logger = logging.getLogger(__name__)
 
@@ -214,3 +215,81 @@ async def get_topic_suggestions(db: Session, text: str, user_id: int) -> List[To
     except Exception as e:
         logger.error(f"Error getting topic suggestions: {str(e)}")
         return []
+
+
+async def analyze_categorization(db: Session, user_id: int) -> AutoCategorizeResponse:
+    """
+    Analyze all entries and propose a new categorization structure.
+    This is a test implementation that randomly assigns entries to topics.
+    """
+    try:
+        # Get all entries for the user
+        entries = db.query(Entry).filter(Entry.user_id == user_id).all()
+        
+        # Get all existing topics
+        existing_topics = db.query(Topic).filter(Topic.user_id == user_id).all()
+
+        # Create some mock new topics
+        new_topic_names = ["AI and Machine Learning", "Web Development", "Personal Growth"]
+        
+        # Initialize proposed topics list with existing topics
+        mock_proposed_topics = [
+            ProposedTopic(
+                topic_id=topic.topic_id,
+                topic_name=topic.topic_name,
+                is_new=False,
+                entries=[],  # We'll fill this later
+                confidence_score=0.95
+            )
+            for topic in existing_topics
+        ]
+
+        # Add mock new topics
+        mock_proposed_topics.extend([
+            ProposedTopic(
+                topic_id=None,
+                topic_name=name,
+                is_new=True,
+                entries=[],  # We'll fill this later
+                confidence_score=0.85
+            )
+            for name in new_topic_names
+        ])
+
+        # Randomly assign entries to topics
+        for entry in entries:
+            # Randomly select a topic
+            proposed_topic = random.choice(mock_proposed_topics)
+            
+            # Create proposed entry
+            proposed_entry = ProposedEntry(
+                entry_id=entry.entry_id,
+                content=entry.content,
+                current_topic_id=entry.topic_id,
+                proposed_topic_id=proposed_topic.topic_id,  # Will be None for new topics
+                creation_date=entry.creation_date,
+                confidence_score=random.uniform(0.65, 0.98)  # Random confidence score
+            )
+            
+            # Add entry to the topic's entries list
+            proposed_topic.entries.append(proposed_entry)
+
+        # Filter out topics with no entries
+        mock_proposed_topics = [topic for topic in mock_proposed_topics if topic.entries]
+
+        # Set topic confidence scores based on average entry confidence
+        for topic in mock_proposed_topics:
+            if topic.entries:
+                topic.confidence_score = sum(e.confidence_score for e in topic.entries) / len(topic.entries)
+
+        return AutoCategorizeResponse(
+            proposed_topics=mock_proposed_topics,
+            uncategorized_entries=[]  # Always empty now
+        )
+
+    except Exception as e:
+        logger.error(f"Error in analyze_categorization: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to analyze categorization"
+        )

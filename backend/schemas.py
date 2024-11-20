@@ -149,3 +149,33 @@ class ChatMessageList(BaseModel):
     """Schema for paginated chat message lists"""
     items: List[ChatMessageResponse]
     total: int = Field(ge=0)
+
+# Add these new schemas to schemas.py
+
+class ProposedEntry(BaseModel):
+    """Schema for an entry with its proposed categorization"""
+    entry_id: int
+    content: str
+    current_topic_id: Optional[int]
+    proposed_topic_id: Optional[int]
+    creation_date: datetime
+    confidence_score: float
+
+    model_config = ConfigDict(from_attributes=True)
+
+class ProposedTopic(BaseModel):
+    """Schema for a proposed topic in auto-categorization"""
+    topic_id: Optional[int] = Field(description="ID if existing topic, None if new")
+    topic_name: str
+    is_new: bool = Field(description="Whether this is a newly suggested topic")
+    entries: List[ProposedEntry]
+    confidence_score: float
+
+    model_config = ConfigDict(from_attributes=True)
+
+class AutoCategorizeResponse(BaseModel):
+    """Schema for the auto-categorization analysis response"""
+    proposed_topics: List[ProposedTopic]
+    uncategorized_entries: List[ProposedEntry]
+    
+    model_config = ConfigDict(from_attributes=True)

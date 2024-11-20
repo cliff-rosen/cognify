@@ -32,7 +32,7 @@ const TopBar: React.FC<TopBarProps> = ({ onEntryAdded, onTopicCreated }) => {
     const fetchSuggestions = async () => {
         try {
             const suggestedTopics = await topicsApi.getTopicSuggestions(entryText)
-            
+
             // Add the "Add new topic..." option
             const newTopicOption: TopicSearchResult = {
                 topic_id: -999,
@@ -42,7 +42,7 @@ const TopBar: React.FC<TopBarProps> = ({ onEntryAdded, onTopicCreated }) => {
                 user_id: 0,
                 creation_date: new Date().toISOString()
             }
-            
+
             const allSuggestions = [...suggestedTopics, newTopicOption]
 
             if (allSuggestions.length > 0) {
@@ -200,12 +200,12 @@ const TopBar: React.FC<TopBarProps> = ({ onEntryAdded, onTopicCreated }) => {
                                             New AI suggestion
                                         </span>
                                     )}
-                                    
+
                                     {/* Topic name in the middle */}
                                     <span className="text-gray-700 dark:text-gray-300 flex-grow">
                                         {topic.topic_name}
                                     </span>
-                                    
+
                                     {/* Add new topic indicator on the right */}
                                     {topic.is_new_topic && (
                                         <span className="text-xs text-blue-600 dark:text-blue-400 ml-2 flex-shrink-0">

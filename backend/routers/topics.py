@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 from typing import List
 from database import get_db
-from schemas import TopicResponse, TopicCreate, TopicUpdate, TopicSearchResponse, TopicSuggestionResponse
+from schemas import TopicResponse, TopicCreate, TopicUpdate, TopicSearchResponse, TopicSuggestionResponse, AutoCategorizeResponse
 from dependencies import CurrentUser
 from models import Topic
 from services import topic_service, auth_service
@@ -233,4 +233,68 @@ async def get_topic_suggestions(
     """
     logger.info("get_topic_suggestions endpoint called")
     return await topic_service.get_topic_suggestions(db, text, current_user.user_id)
+
+@router.post(
+    "/analyze-categorization",
+    response_model=AutoCategorizeResponse,
+    summary="Analyze entries and propose new categorization",
+    responses={
+        200: {
+            "description": "Analysis completed successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "proposed_topics": [
+                            {
+                                "topic_id": 1,
+                                "topic_name": "Machine Learning",
+                                "is_new": False,
+                                "entries": [
+                                    {
+                                        "entry_id": 1,
+                                        "content": "Learning about neural networks",
+                                        "current_topic_id": None,
+                                        "proposed_topic_id": 1,
+                                        "creation_date": "2024-03-13T12:00:00Z",
+                                        "confidence_score": 0.92
+                                    }
+                                ],
+                                "confidence_score": 0.92
+                            },
+                            {
+                                "topic_id": None,
+                                "topic_name": "Web Development",
+                                "is_new": True,
+                                "entries": [
+                                    {
+                                        "entry_id": 2,
+                                        "content": "Learning React hooks",
+                                        "current_topic_id": None,
+                                        "proposed_topic_id": None,
+                                        "creation_date": "2024-03-13T12:00:00Z",
+                                        "confidence_score": 0.88
+                                    }
+                                ],
+                                "confidence_score": 0.88
+                            }
+                        ],
+                        "uncategorized_entries": []
+                    }
+                }
+            }
+        },
+        401: {"description": "Not authenticated"},
+        500: {"description": "Analysis failed"}
+    }
+)
+async def analyze_categorization(
+    current_user = Depends(auth_service.validate_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Analyze all entries and propose a new categorization structure.
+    Returns existing topics to keep, suggested new topics, and proposed entry assignments.
+    """
+    logger.info(f"analyze_categorization called for user {current_user.user_id}")
+    return await topic_service.analyze_categorization(db, current_user.user_id)
 
