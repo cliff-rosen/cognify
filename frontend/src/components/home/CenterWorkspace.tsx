@@ -181,10 +181,15 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                                                 </div>
 
                                                 <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
-                                                    <h4 className="text-sm font-medium text-blue-700 dark:text-blue-300 mb-2">Pro Tip</h4>
-                                                    <p className="text-sm text-blue-600 dark:text-blue-400">
-                                                        Don't worry about organizing perfectly - our AI will help suggest relevant topics based on what you write. Just start capturing your thoughts!
-                                                    </p>
+                                                    <h4 className="text-sm font-medium text-blue-700 dark:text-blue-300 mb-2">Pro Tips</h4>
+                                                    <div className="space-y-2">
+                                                        <p className="text-sm text-blue-600 dark:text-blue-400">
+                                                            • Don't worry about organizing perfectly - our AI will help suggest relevant topics based on what you write
+                                                        </p>
+                                                        <p className="text-sm text-blue-600 dark:text-blue-400">
+                                                            • You can easily reorganize later by renaming topics or dragging thoughts between topics
+                                                        </p>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
