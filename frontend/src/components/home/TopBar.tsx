@@ -206,12 +206,22 @@ const TopBar: React.FC<TopBarProps> = ({ onEntryAdded, onTopicCreated }) => {
                                         {topic.topic_name}
                                     </span>
 
-                                    {/* Add new topic indicator on the right */}
-                                    {topic.is_new_topic && (
-                                        <span className="text-xs text-blue-600 dark:text-blue-400 ml-2 flex-shrink-0">
-                                            + Add new topic
-                                        </span>
-                                    )}
+                                    {/* Score and indicators on the right */}
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                        {/* Only show score if it's not a "Add new topic" option and has a score */}
+                                        {!topic.is_new_topic && topic.score > 0 && (
+                                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                                                {Math.round(topic.score * 100)}%
+                                            </span>
+                                        )}
+                                        
+                                        {/* Add new topic indicator */}
+                                        {topic.is_new_topic && (
+                                            <span className="text-xs text-blue-600 dark:text-blue-400">
+                                                + Add new topic
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                             ))}
                         </div>
