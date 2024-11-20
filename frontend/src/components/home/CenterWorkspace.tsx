@@ -149,17 +149,17 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                                                 Welcome to Cognify!
                                             </h3>
                                             <p className="text-gray-500 dark:text-gray-400 mb-6">
-                                                Choose how you'd like to get started:
+                                                Let's capture your thoughts and organize them intelligently
                                             </p>
                                             <div className="max-w-sm mx-auto text-left space-y-6">
                                                 <div className="space-y-4">
-                                                    <h4 className="text-sm font-medium text-gray-900 dark:text-white">Option 1: Just start writing</h4>
+                                                    <h4 className="text-sm font-medium text-gray-900 dark:text-white">Getting Started</h4>
                                                     <div className="flex items-start gap-3">
                                                         <div className="flex-none flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900">
                                                             <span className="text-blue-600 dark:text-blue-400 text-sm font-medium">1</span>
                                                         </div>
                                                         <p className="text-gray-600 dark:text-gray-300">
-                                                            Start adding your thoughts using the input bar at the top
+                                                            Start typing your thought in the input bar above
                                                         </p>
                                                     </div>
                                                     <div className="flex items-start gap-3">
@@ -167,29 +167,24 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                                                             <span className="text-blue-600 dark:text-blue-400 text-sm font-medium">2</span>
                                                         </div>
                                                         <p className="text-gray-600 dark:text-gray-300">
-                                                            Let the AI assistant help organize your entries into relevant topics
+                                                            As you type, AI will suggest relevant topics or you can create your own
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex items-start gap-3">
+                                                        <div className="flex-none flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900">
+                                                            <span className="text-blue-600 dark:text-blue-400 text-sm font-medium">3</span>
+                                                        </div>
+                                                        <p className="text-gray-600 dark:text-gray-300">
+                                                            Select a topic and click "Add to Topic" to save your thought
                                                         </p>
                                                     </div>
                                                 </div>
 
-                                                <div className="space-y-4">
-                                                    <h4 className="text-sm font-medium text-gray-900 dark:text-white">Option 2: Organize first</h4>
-                                                    <div className="flex items-start gap-3">
-                                                        <div className="flex-none flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900">
-                                                            <span className="text-blue-600 dark:text-blue-400 text-sm font-medium">1</span>
-                                                        </div>
-                                                        <p className="text-gray-600 dark:text-gray-300">
-                                                            Create topics in the sidebar to organize your thoughts
-                                                        </p>
-                                                    </div>
-                                                    <div className="flex items-start gap-3">
-                                                        <div className="flex-none flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900">
-                                                            <span className="text-blue-600 dark:text-blue-400 text-sm font-medium">2</span>
-                                                        </div>
-                                                        <p className="text-gray-600 dark:text-gray-300">
-                                                            Add entries to your topics and use the AI assistant for insights
-                                                        </p>
-                                                    </div>
+                                                <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+                                                    <h4 className="text-sm font-medium text-blue-700 dark:text-blue-300 mb-2">Pro Tip</h4>
+                                                    <p className="text-sm text-blue-600 dark:text-blue-400">
+                                                        Don't worry about organizing perfectly - our AI will help suggest relevant topics based on what you write. Just start capturing your thoughts!
+                                                    </p>
                                                 </div>
                                             </div>
                                         </div>
