@@ -278,17 +278,15 @@ async def analyze_categorization(
             )
             logger.info(f"AI suggested {len(new_topic_names)} new topics")
             
-            # Add new topics to proposed_topics list with temporary IDs
-            next_temp_id = -1
+            # Add new topics to proposed_topics list
             for topic_name in new_topic_names:
                 proposed_topics.append(ProposedTopic(
-                    topic_id=next_temp_id,
+                    topic_id=None,
                     topic_name=topic_name,
                     is_new=True,
                     entries=[],
-                    confidence_score=0.0
+                    confidence_score=0.0  # Will be updated based on entry assignments
                 ))
-                next_temp_id -= 1
             
             # Second AI call: Get entry assignments
             assignments = await ai_service.get_entry_assignments(
@@ -307,7 +305,7 @@ async def analyze_categorization(
                 entry = next(e for e in entries_to_categorize if e.entry_id == entry_id)
                 topic = next(t for t in proposed_topics if t.topic_name == topic_name)
                 
-                # Create proposed entry with the correct proposed_topic_id
+                # Create proposed entry
                 proposed_entry = ProposedEntry(
                     entry_id=entry.entry_id,
                     content=entry.content,

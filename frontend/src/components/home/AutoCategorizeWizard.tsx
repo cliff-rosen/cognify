@@ -59,11 +59,17 @@ const AutoCategorizeWizard: React.FC<AutoCategorizeWizardProps> = ({ topics, onC
     const getChangeDescription = (entry: ProposedEntry) => {
         const fromTopic = getTopicName(entry.current_topic_id);
         const toTopic = getTopicName(entry.proposed_topic_id);
-        
-        return {
-            from: fromTopic,
-            isChange: fromTopic !== toTopic
-        };
+
+        if (fromTopic === toTopic && fromTopic !== 'Uncategorized') {
+            return 'No change';
+        }
+
+        return (
+            <span>
+                <span className="font-medium text-yellow-600 dark:text-yellow-400">From: </span>
+                <span className="text-gray-600 dark:text-gray-300">{fromTopic}</span>
+            </span>
+        );
     };
 
     const renderStep1 = () => (
@@ -174,18 +180,7 @@ const AutoCategorizeWizard: React.FC<AutoCategorizeWizardProps> = ({ topics, onC
                                         <div className="text-sm mb-2 dark:text-gray-200">{entry.content}</div>
                                         <div className="flex justify-between items-center text-sm">
                                             <div className="text-gray-500 dark:text-gray-400">
-                                                {(() => {
-                                                    const change = getChangeDescription(entry);
-                                                    if (!change.isChange) {
-                                                        return 'No change';
-                                                    }
-                                                    return (
-                                                        <span>
-                                                            <span className="text-yellow-600 dark:text-yellow-400">Moved from: </span>
-                                                            {change.from}
-                                                        </span>
-                                                    );
-                                                })()}
+                                                {getChangeDescription(entry)}
                                             </div>
                                             <span className="text-gray-500 dark:text-gray-400">
                                                 {Math.round(entry.confidence_score * 100)}% confidence
@@ -279,8 +274,8 @@ const AutoCategorizeWizard: React.FC<AutoCategorizeWizardProps> = ({ topics, onC
                             >
                                 <div
                                     className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= stepNum
-                                            ? 'bg-blue-600 text-white'
-                                            : 'bg-gray-200 text-gray-600'
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-gray-200 text-gray-600'
                                         }`}
                                 >
                                     {stepNum}
@@ -288,8 +283,8 @@ const AutoCategorizeWizard: React.FC<AutoCategorizeWizardProps> = ({ topics, onC
                                 {stepNum < 3 && (
                                     <div
                                         className={`flex-1 h-1 mx-2 ${step > stepNum
-                                                ? 'bg-blue-600'
-                                                : 'bg-gray-200'
+                                            ? 'bg-blue-600'
+                                            : 'bg-gray-200'
                                             }`}
                                     />
                                 )}
