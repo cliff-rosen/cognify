@@ -225,26 +225,18 @@ async def analyze_categorization(
 ) -> AutoCategorizeResponse:
     try:
         logger.info(f"Starting analyze_categorization for user {user_id}")
-        if instructions:
-            logger.info(f"Instructions provided: {instructions}")
-        if topics_to_keep:
-            logger.info(f"Topics to keep: {topics_to_keep}")
-
-        # Get all entries for the user
+        
+        # Get all entries and topics
         entries = db.query(Entry).filter(Entry.user_id == user_id).all()
-        logger.info(f"Found {len(entries)} total entries")
-
-        # Get all existing topics
         existing_topics = db.query(Topic).filter(Topic.user_id == user_id).all()
-        logger.info(f"Found {len(existing_topics)} existing topics")
+        logger.info(f"Found {len(entries)} entries and {len(existing_topics)} topics")
 
-        # Separate topics into keep and recategorize
+        # Separate topics and entries into keep vs recategorize
         topics_to_keep_set = set(topics_to_keep)
         kept_topics = [topic for topic in existing_topics if topic.topic_id in topics_to_keep_set]
-        other_topics = [topic for topic in existing_topics if topic.topic_id not in topics_to_keep_set]
-        logger.info(f"Keeping {len(kept_topics)} topics, {len(other_topics)} topics available for recategorization")
+        logger.info(f"Keeping {len(kept_topics)} topics")
 
-        # Initialize proposed topics list with kept topics
+        # Initialize response with kept topics
         proposed_topics = [
             ProposedTopic(
                 topic_id=topic.topic_id,
@@ -255,82 +247,93 @@ async def analyze_categorization(
             )
             for topic in kept_topics
         ]
-        logger.info(f"Initialized {len(proposed_topics)} kept topics in proposal list")
 
-        # First, handle entries in kept topics
+        # Add entries for kept topics
         kept_entries = []
         for entry in entries:
             if entry.topic_id in topics_to_keep_set:
                 kept_topic = next(t for t in proposed_topics if t.topic_id == entry.topic_id)
-                proposed_entry = ProposedEntry(
+                kept_entries.append(entry.entry_id)
+                kept_topic.entries.append(ProposedEntry(
                     entry_id=entry.entry_id,
                     content=entry.content,
                     current_topic_id=entry.topic_id,
                     proposed_topic_id=entry.topic_id,
                     creation_date=entry.creation_date,
                     confidence_score=1.0
-                )
-                kept_topic.entries.append(proposed_entry)
-                kept_entries.append(entry.entry_id)
-        logger.info(f"Kept {len(kept_entries)} entries in their original topics")
+                ))
+        logger.info(f"Added {len(kept_entries)} entries to kept topics")
 
-        # Create new topics only if we have entries to reassign
-        remaining_entries = [e for e in entries if e.entry_id not in kept_entries]
-        if remaining_entries:
-            new_topic_names = ["AI and Machine Learning", "Web Development", "Personal Growth"]
-            logger.info(f"Creating {len(new_topic_names)} new topics for {len(remaining_entries)} remaining entries")
+        # Get entries that need recategorization
+        entries_to_categorize = [e for e in entries if e.entry_id not in kept_entries]
+        if entries_to_categorize:
+            logger.info(f"Getting new topics for {len(entries_to_categorize)} entries")
             
-            # Add new topics
-            proposed_topics.extend([
-                ProposedTopic(
+            # First AI call: Get proposed new topics
+            new_topic_names = await ai_service.get_proposed_topics(
+                kept_topics=kept_topics,
+                kept_entries=[e for e in entries if e.entry_id in kept_entries],
+                entries_to_categorize=entries_to_categorize,
+                instructions=instructions
+            )
+            logger.info(f"AI suggested {len(new_topic_names)} new topics")
+            
+            # Add new topics to proposed_topics list
+            for topic_name in new_topic_names:
+                proposed_topics.append(ProposedTopic(
                     topic_id=None,
-                    topic_name=name,
+                    topic_name=topic_name,
                     is_new=True,
                     entries=[],
-                    confidence_score=0.85
-                )
-                for name in new_topic_names
-            ])
-
-            # Randomly assign remaining entries to new topics
-            new_topics = [t for t in proposed_topics if t.is_new]
-            for entry in remaining_entries:
-                proposed_topic = random.choice(new_topics)
-                confidence_score = random.uniform(0.65, 0.98)
+                    confidence_score=0.0  # Will be updated based on entry assignments
+                ))
+            
+            # Second AI call: Get entry assignments
+            assignments = await ai_service.get_entry_assignments(
+                entries=entries_to_categorize,
+                proposed_topics=[t for t in proposed_topics if t.is_new]
+            )
+            logger.info(f"Got {len(assignments)} entry assignments from AI")
+            
+            # Process assignments
+            for assignment in assignments:
+                entry_id = assignment['entry_id']
+                topic_name = assignment['topic_name']
+                confidence = assignment['confidence']
                 
-                logger.debug(f"Assigning entry {entry.entry_id} to new topic '{proposed_topic.topic_name}' "
-                           f"(current_topic_id: {entry.topic_id}, "
-                           f"confidence: {confidence_score:.2f})")
+                # Find the entry and topic
+                entry = next(e for e in entries_to_categorize if e.entry_id == entry_id)
+                topic = next(t for t in proposed_topics if t.topic_name == topic_name)
                 
+                # Create proposed entry
                 proposed_entry = ProposedEntry(
                     entry_id=entry.entry_id,
                     content=entry.content,
                     current_topic_id=entry.topic_id,
-                    proposed_topic_id=proposed_topic.topic_id,
+                    proposed_topic_id=topic.topic_id,
                     creation_date=entry.creation_date,
-                    confidence_score=confidence_score
+                    confidence_score=confidence
                 )
                 
-                proposed_topic.entries.append(proposed_entry)
+                topic.entries.append(proposed_entry)
+            
+            # Update topic confidence scores based on entry assignments
+            for topic in proposed_topics:
+                if topic.is_new and topic.entries:
+                    topic.confidence_score = sum(e.confidence_score for e in topic.entries) / len(topic.entries)
+                    logger.debug(f"Topic '{topic.topic_name}' confidence: {topic.confidence_score:.2f} "
+                               f"with {len(topic.entries)} entries")
 
-        # Filter out topics with no entries
-        # original_topic_count = len(proposed_topics)
-        # proposed_topics = [topic for topic in proposed_topics if topic.entries]
-        # logger.info(f"Filtered out {original_topic_count - len(proposed_topics)} empty topics")
+        # Filter out any new topics that didn't get any entries
+        original_count = len(proposed_topics)
+        proposed_topics = [t for t in proposed_topics if t.entries or not t.is_new]
+        if original_count != len(proposed_topics):
+            logger.info(f"Filtered out {original_count - len(proposed_topics)} empty topics")
 
-        # Set topic confidence scores based on average entry confidence
-        for topic in proposed_topics:
-            if topic.entries and topic.is_new:  # Only calculate for new topics
-                topic.confidence_score = sum(e.confidence_score for e in topic.entries) / len(topic.entries)
-                logger.debug(f"Topic '{topic.topic_name}' confidence score: {topic.confidence_score:.2f} "
-                           f"(based on {len(topic.entries)} entries)")
-
-        logger.info("Analysis complete. Returning results with "
-                   f"{len(proposed_topics)} topics containing entries")
-
+        logger.info("Analysis complete")
         return AutoCategorizeResponse(
             proposed_topics=proposed_topics,
-            uncategorized_entries=[],
+            uncategorized_entries=[],  # All entries are assigned in this implementation
             instructions_used=instructions
         )
 
