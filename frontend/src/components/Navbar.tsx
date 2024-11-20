@@ -12,11 +12,29 @@ export default function Navbar() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between h-16">
                     <div className="flex items-center">
-                        <Link to="/" className="text-xl font-bold text-gray-800 dark:text-white">
-                            Cognify
+                        <Link to="/" className="flex items-center gap-2">
+                            <img 
+                                src="/cognify-icon.svg" 
+                                alt="Cognify Logo" 
+                                className="h-8 w-8"
+                            />
+                            <span className="text-xl font-bold text-gray-800 dark:text-white">
+                                Cognify
+                            </span>
                         </Link>
                     </div>
                     <div className="flex items-center gap-4">
+                        <button
+                            onClick={toggleTheme}
+                            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                            aria-label="Toggle theme"
+                        >
+                            {isDarkMode ? (
+                                <SunIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                            ) : (
+                                <MoonIcon className="h-5 w-5 text-gray-500" />
+                            )}
+                        </button>
                         {isAuthenticated && user && (
                             <span className="text-sm text-gray-600 dark:text-gray-300">
                                 {user.username}
@@ -39,17 +57,6 @@ export default function Navbar() {
                                 Login
                             </Link>
                         )}
-                        <button
-                            onClick={toggleTheme}
-                            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-                            aria-label="Toggle theme"
-                        >
-                            {isDarkMode ? (
-                                <SunIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
-                            ) : (
-                                <MoonIcon className="h-5 w-5 text-gray-500" />
-                            )}
-                        </button>
                     </div>
                 </div>
             </div>

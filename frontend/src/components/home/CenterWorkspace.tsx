@@ -138,8 +138,60 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                                 </h3>
                                 <div className="p-4 space-y-4">
                                     {entries.length === 0 ? (
-                                        <div className="text-gray-500 dark:text-gray-400">
-                                            No entries yet
+                                        <div className="text-center py-8">
+                                            <div className="mb-4">
+                                                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                                                        d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                                                </svg>
+                                            </div>
+                                            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                                                Welcome to Cognify!
+                                            </h3>
+                                            <p className="text-gray-500 dark:text-gray-400 mb-6">
+                                                Choose how you'd like to get started:
+                                            </p>
+                                            <div className="max-w-sm mx-auto text-left space-y-6">
+                                                <div className="space-y-4">
+                                                    <h4 className="text-sm font-medium text-gray-900 dark:text-white">Option 1: Just start writing</h4>
+                                                    <div className="flex items-start gap-3">
+                                                        <div className="flex-none flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900">
+                                                            <span className="text-blue-600 dark:text-blue-400 text-sm font-medium">1</span>
+                                                        </div>
+                                                        <p className="text-gray-600 dark:text-gray-300">
+                                                            Start adding your thoughts using the input bar at the top
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex items-start gap-3">
+                                                        <div className="flex-none flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900">
+                                                            <span className="text-blue-600 dark:text-blue-400 text-sm font-medium">2</span>
+                                                        </div>
+                                                        <p className="text-gray-600 dark:text-gray-300">
+                                                            Let the AI assistant help organize your entries into relevant topics
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-4">
+                                                    <h4 className="text-sm font-medium text-gray-900 dark:text-white">Option 2: Organize first</h4>
+                                                    <div className="flex items-start gap-3">
+                                                        <div className="flex-none flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900">
+                                                            <span className="text-blue-600 dark:text-blue-400 text-sm font-medium">1</span>
+                                                        </div>
+                                                        <p className="text-gray-600 dark:text-gray-300">
+                                                            Create topics in the sidebar to organize your thoughts
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex items-start gap-3">
+                                                        <div className="flex-none flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900">
+                                                            <span className="text-blue-600 dark:text-blue-400 text-sm font-medium">2</span>
+                                                        </div>
+                                                        <p className="text-gray-600 dark:text-gray-300">
+                                                            Add entries to your topics and use the AI assistant for insights
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     ) : (
                                         entries.map(entry => (
