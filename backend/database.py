@@ -1,5 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+import pymysql
+pymysql.install_as_MySQLdb()
 from config import settings
 from models import Base
 
@@ -9,7 +11,8 @@ engine = create_engine(
     pool_size=5,
     max_overflow=10,
     pool_timeout=30,
-    pool_recycle=1800
+    pool_recycle=1800,
+    pool_pre_ping=True
 )
 
 # Create sessionmaker
