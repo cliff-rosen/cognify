@@ -1,21 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Topic, topicsApi } from '../../lib/api/topicsApi'
+import { Topic, topicsApi, UncategorizedTopic, isUncategorizedTopic, UNCATEGORIZED_TOPIC_ID } from '../../lib/api/topicsApi'
 import { DragEvent } from 'react'
 import { Entry, entriesApi } from '../../lib/api/entriesApi'
 
 interface LeftSidebarProps {
     onSelectTopic: (topicId: number | null) => void;
     selectedTopicId: number | null;
-    topics: Topic[];
-    onTopicsChange: (topics: Topic[]) => void;
+    topics: (Topic | UncategorizedTopic)[];
+    onTopicsChange: (topics: (Topic | UncategorizedTopic)[]) => void;
     onEntryMoved?: () => void;
 }
 
-const LeftSidebar: React.FC<LeftSidebarProps> = ({ 
-    onSelectTopic, 
-    selectedTopicId, 
-    topics, 
-    onTopicsChange, 
+const LeftSidebar: React.FC<LeftSidebarProps> = ({
+    onSelectTopic,
+    selectedTopicId,
+    topics,
+    onTopicsChange,
     onEntryMoved
 }) => {
     const [isLoading, setIsLoading] = useState(false)
@@ -81,8 +81,8 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
             const updatedTopic = await topicsApi.updateTopic(topicId, {
                 topic_name: editingName.trim()
             })
-            
-            onTopicsChange(topics.map(topic =>  
+
+            onTopicsChange(topics.map(topic =>
                 topic.topic_id === topicId ? updatedTopic : topic
             ))
             cancelEditing()
@@ -116,17 +116,13 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
         if (!e.dataTransfer.types.includes('application/json')) {
             return
         }
-        
-        // Don't allow drops on Dashboard (when topicId is null)
-        if (topicId === null) {
+
+        const targetTopicId = topicId === null ? UNCATEGORIZED_TOPIC_ID : topicId
+
+        if (draggedEntryRef.current?.topic_id === targetTopicId) {
             return
         }
-        
-        // Check if dragging to same topic using the ref
-        if (draggedEntryRef.current?.topic_id === topicId) {
-            return
-        }
-        
+
         e.preventDefault()
         if (e.currentTarget.classList) {
             e.currentTarget.classList.add('bg-blue-50', 'dark:bg-blue-900/30')
@@ -141,7 +137,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
 
     const handleDrop = async (e: DragEvent<HTMLDivElement>, topicId: number | null) => {
         e.preventDefault()
-        
+
         if (e.currentTarget.classList) {
             e.currentTarget.classList.remove('bg-blue-50', 'dark:bg-blue-900/30')
         }
@@ -149,22 +145,27 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
         try {
             const entryData = e.dataTransfer.getData('application/json')
             const entry: Entry = JSON.parse(entryData)
-            
-            if (entry.topic_id === topicId) return
 
-            await entriesApi.moveEntryToTopic(entry.entry_id, topicId)
-            
+            const targetTopicId = topicId === null ? UNCATEGORIZED_TOPIC_ID : topicId
+
+            if (entry.topic_id === targetTopicId) return
+
+            const newTopicId = targetTopicId === UNCATEGORIZED_TOPIC_ID ? null : targetTopicId
+            await entriesApi.moveEntryToTopic(entry.entry_id, newTopicId)
+
             if (onEntryMoved && (
-                selectedTopicId === null || 
-                selectedTopicId === entry.topic_id || 
-                selectedTopicId === topicId
+                selectedTopicId === null ||
+                selectedTopicId === entry.topic_id ||
+                selectedTopicId === targetTopicId ||
+                (entry.topic_id === null && selectedTopicId === UNCATEGORIZED_TOPIC_ID) ||
+                (targetTopicId === UNCATEGORIZED_TOPIC_ID && selectedTopicId === null)
             )) {
                 onEntryMoved()
             }
         } catch (error) {
             console.error('Error moving entry:', error)
         } finally {
-            draggedEntryRef.current = null  // Clear the ref
+            draggedEntryRef.current = null
         }
     }
 
@@ -214,17 +215,17 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                             onDrop={(e) => handleDrop(e, null)}
                         >
                             <span className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                                <svg 
-                                    className="w-5 h-5" 
-                                    fill="none" 
-                                    stroke="currentColor" 
+                                <svg
+                                    className="w-5 h-5"
+                                    fill="none"
+                                    stroke="currentColor"
                                     viewBox="0 0 24 24"
                                 >
-                                    <path 
-                                        strokeLinecap="round" 
-                                        strokeLinejoin="round" 
-                                        strokeWidth={2} 
-                                        d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" 
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
                                     />
                                 </svg>
                                 Dashboard
@@ -264,24 +265,27 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                     {topics.map(topic => (
                         <li key={topic.topic_id}>
                             {editingTopicId === topic.topic_id ? (
-                                <div className="flex items-center p-2 rounded-lg">
-                                    <input
-                                        type="text"
-                                        value={editingName}
-                                        onChange={(e) => setEditingName(e.target.value)}
-                                        onKeyDown={(e) => handleKeyPress(e, topic.topic_id)}
-                                        onBlur={() => handleRename(topic.topic_id)}
-                                        className="flex-1 px-2 py-1 text-sm rounded border border-gray-300 
-                                                 dark:border-gray-600 dark:bg-gray-700 dark:text-white
-                                                 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        autoFocus
-                                    />
-                                </div>
+                                !isUncategorizedTopic(topic) && (
+                                    <div className="flex items-center p-2 rounded-lg">
+                                        <input
+                                            type="text"
+                                            value={editingName}
+                                            onChange={(e) => setEditingName(e.target.value)}
+                                            onKeyDown={(e) => handleKeyPress(e, topic.topic_id)}
+                                            onBlur={() => handleRename(topic.topic_id)}
+                                            className="flex-1 px-2 py-1 text-sm rounded border border-gray-300 
+                                                     dark:border-gray-600 dark:bg-gray-700 dark:text-white
+                                                     focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            autoFocus
+                                        />
+                                    </div>
+                                )
                             ) : (
                                 <div
                                     className={`flex items-center justify-between p-2 rounded-lg cursor-pointer
                                               hover:bg-gray-100 dark:hover:bg-gray-700
-                                              ${selectedTopicId === topic.topic_id ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
+                                              ${selectedTopicId === topic.topic_id ? 'bg-gray-100 dark:bg-gray-700' : ''}
+                                              ${isUncategorizedTopic(topic) ? 'border-t border-b border-gray-200 dark:border-gray-700' : ''}`}
                                     onDragOver={(e) => handleDragOver(e, topic.topic_id)}
                                     onDragLeave={handleDragLeave}
                                     onDrop={(e) => handleDrop(e, topic.topic_id)}
@@ -290,41 +294,58 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                                         onClick={() => onSelectTopic(topic.topic_id)}
                                         className="flex-1 text-gray-700 dark:text-gray-300 flex justify-between items-center"
                                     >
-                                        <span>{topic.topic_name}</span>
+                                        <span className="flex items-center gap-2">
+                                            {isUncategorizedTopic(topic) ? (
+                                                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                        d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                                                </svg>
+                                            ) : (
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                        d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                                </svg>
+                                            )}
+                                            <span className={isUncategorizedTopic(topic) ? 'text-gray-500 dark:text-gray-400 italic' : ''}>
+                                                {topic.topic_name}
+                                            </span>
+                                        </span>
                                         {topic.entry_count !== undefined && (
                                             <span className="text-sm text-gray-500 dark:text-gray-400">
                                                 {topic.entry_count}
                                             </span>
                                         )}
                                     </span>
-                                    <div className="flex items-center gap-1">
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation()
-                                                startEditing(topic)
-                                            }}
-                                            className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                                            title="Edit topic"
-                                        >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                                                      d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                            </svg>
-                                        </button>
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation()
-                                                setTopicToDelete(topic)
-                                            }}
-                                            className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400"
-                                            title="Delete topic"
-                                        >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                                                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                            </svg>
-                                        </button>
-                                    </div>
+                                    {!isUncategorizedTopic(topic) && (
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    startEditing(topic)
+                                                }}
+                                                className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                                                title="Edit topic"
+                                            >
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                </svg>
+                                            </button>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    setTopicToDelete(topic)
+                                                }}
+                                                className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                                                title="Delete topic"
+                                            >
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </li>

@@ -5,11 +5,11 @@ import CenterWorkspace from '../components/home/CenterWorkspace'
 import RightSidebar from '../components/home/RightSidebar'
 import { useState, useRef } from 'react'
 import { Entry } from '../lib/api/entriesApi'
-import { Topic } from '../lib/api/topicsApi'
+import { Topic, UNCATEGORIZED_TOPIC_ID, UncategorizedTopic } from '../lib/api/topicsApi'
 
 export default function HomeComponent() {
     const { isAuthenticated, login, register, error } = useAuth()
-    const [topics, setTopics] = useState<Topic[]>([])
+    const [topics, setTopics] = useState<(Topic | UncategorizedTopic)[]>([])
     const [selectedTopicId, setSelectedTopicId] = useState<number | null>(null)
     const centerWorkspaceRef = useRef<{ refreshEntries: () => void } | null>(null)
     const [showRightSidebar, setShowRightSidebar] = useState(true)
@@ -22,7 +22,9 @@ export default function HomeComponent() {
     const [passwordError, setPasswordError] = useState<string | null>(null)
 
     const handleEntryAdded = (entry: Entry) => {
-        if (!selectedTopicId || entry.topic_id === selectedTopicId) {
+        if (selectedTopicId === null ||
+            selectedTopicId === entry.topic_id ||
+            (selectedTopicId === UNCATEGORIZED_TOPIC_ID && entry.topic_id === null)) {
             centerWorkspaceRef.current?.refreshEntries()
         }
     }
@@ -33,13 +35,13 @@ export default function HomeComponent() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        
+
         if (isRegistering) {
             if (formData.password !== formData.confirmPassword) {
                 setPasswordError("Passwords don't match")
                 return
             }
-            
+
             register.mutate(
                 { email: formData.email, password: formData.password },
                 {
@@ -173,7 +175,11 @@ export default function HomeComponent() {
         <div className="h-screen flex flex-col dark:bg-gray-900">
             {/* Top Bar */}
             <div className="flex-none">
-                <TopBar onEntryAdded={handleEntryAdded} onTopicCreated={handleTopicCreated} />
+                <TopBar 
+                    onEntryAdded={handleEntryAdded} 
+                    onTopicCreated={handleTopicCreated} 
+                    currentTopicId={selectedTopicId}
+                />
             </div>
 
             {/* Main Content Area */}

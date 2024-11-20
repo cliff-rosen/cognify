@@ -10,18 +10,21 @@ async def get_entries(db: Session, user_id: int, topic_id: int = None):
     """Get all entries for a user, optionally filtered by topic"""
     try:
         query = db.query(Entry).filter(Entry.user_id == user_id)
-        if topic_id:
-            # Verify the topic belongs to the user
-            topic = db.query(Topic).filter(
-                Topic.topic_id == topic_id,
-                Topic.user_id == user_id
-            ).first()
-            if not topic:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Topic not found or does not belong to user"
-                )
-            query = query.filter(Entry.topic_id == topic_id)
+        if topic_id is not None:
+            if topic_id == -1:
+                query = query.filter(Entry.topic_id.is_(None))
+            else:
+                # Verify the topic belongs to the user
+                topic = db.query(Topic).filter(
+                    Topic.topic_id == topic_id,
+                    Topic.user_id == user_id
+                ).first()
+                if not topic:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="Topic not found or does not belong to user"
+                    )
+                query = query.filter(Entry.topic_id == topic_id)
         entries = query.all()
         logger.info(f"Retrieved {len(entries)} entries for user {user_id}")
         return entries
@@ -88,29 +91,36 @@ async def update_entry(db: Session, entry_id: int, entry_update: EntryUpdate, us
                 detail="Entry belongs to another user"
             )
             
-        # If updating topic_id, verify the new topic belongs to the user
-        if entry_update.topic_id is not None:
-            topic = db.query(Topic).filter(
-                Topic.topic_id == entry_update.topic_id,
-                Topic.user_id == user_id
-            ).first()
-            if not topic:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Target topic not found or does not belong to user"
-                )
+        # Handle topic_id update
+        if hasattr(entry_update, 'topic_id'):  # Check if topic_id is included in update
+            # If topic_id is None, it means move to uncategorized
+            if entry_update.topic_id is not None:
+                # Verify the new topic exists and belongs to the user
+                topic = db.query(Topic).filter(
+                    Topic.topic_id == entry_update.topic_id,
+                    Topic.user_id == user_id
+                ).first()
+                if not topic:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="Target topic not found or does not belong to user"
+                    )
+            
+            # Update topic_id (can be None for uncategorized)
             db_entry.topic_id = entry_update.topic_id
-            logger.info(f"Moved entry {entry_id} to topic {entry_update.topic_id}")
+            logger.info(f"Moved entry {entry_id} to topic {entry_update.topic_id if entry_update.topic_id is not None else 'uncategorized'}")
             
         # Update content if provided
-        if entry_update.content is not None:
+        if hasattr(entry_update, 'content') and entry_update.content is not None:
             db_entry.content = entry_update.content
+            logger.info(f"Updated content for entry {entry_id}")
             
         db.commit()
         db.refresh(db_entry)
         return db_entry
         
     except HTTPException as e:
+        db.rollback()
         raise e
     except Exception as e:
         logger.error(f"Error updating entry: {str(e)}")

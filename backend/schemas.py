@@ -95,17 +95,11 @@ class EntryCreate(BaseModel):
 
 class EntryUpdate(BaseModel):
     """Schema for updating an entry (PATCH)"""
-    content: Optional[str] = Field(
-        default=None,
-        min_length=1,
-        description="Updated content of the entry",
-        example="Updated insights about neural networks..."
-    )
-    topic_id: Optional[int] = Field(
-        default=None,
-        description="ID of the topic this entry belongs to",
-        example=1
-    )
+    content: Optional[str] = None
+    topic_id: Optional[int] = None
+
+    class Config:
+        from_attributes = True
 
 class EntryResponse(BaseModel):
     """Schema for entry responses"""
