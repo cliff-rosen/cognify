@@ -5,19 +5,10 @@ from sqlalchemy import text
 from database import get_db, init_db
 from models import Base
 from routers import auth, topics, entries, chat
-import logging
-import sys
-from config import settings
+from config import settings, setup_logging
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
-)
-logger = logging.getLogger(__name__)
+# Setup logging first
+logger = setup_logging()
 
 app = FastAPI(
     title="Cognify API",
@@ -97,3 +88,5 @@ async def health_check(db: Session = Depends(get_db)):
 async def test_endpoint():
     logger.info("Test endpoint called")
     return {"status": "ok"}
+
+logger.info("Application startup complete")

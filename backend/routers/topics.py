@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 from typing import List
 from database import get_db
-from schemas import TopicResponse, TopicCreate, TopicUpdate, TopicSearchResponse, TopicSuggestionResponse, AutoCategorizeResponse, AutoCategorizeRequest
+from schemas import TopicResponse, TopicCreate, TopicUpdate, TopicSearchResponse, TopicSuggestionResponse, AutoCategorizeResponse, AutoCategorizeRequest, ApplyCategorizeRequest
 from dependencies import CurrentUser
 from models import Topic
 from services import topic_service, auth_service
@@ -307,4 +307,31 @@ async def analyze_categorization(
         request.instructions,
         request.topics_to_keep
     )
+
+@router.post("/apply-categorization")
+async def apply_categorization(
+    request: ApplyCategorizeRequest,
+    db: Session = Depends(get_db),
+    current_user = Depends(auth_service.validate_token),
+):
+    """
+    Apply the provided categorization changes.
+    Creates new topics and updates entry categorizations according to the provided changes.
+    """
+    logger.info(f"apply_categorization endpoint called for user {current_user.user_id}")
+    logger.info(f"Request summary: {len(request.proposed_topics)} topics, "
+               f"{sum(len(t.entries) for t in request.proposed_topics)} entries to move, "
+               f"{len(request.uncategorized_entries)} entries to uncategorize")
+    
+    try:
+        await topic_service.apply_categorization(
+            db=db,
+            user_id=current_user.user_id,
+            changes=request
+        )
+        logger.info(f"Successfully completed apply_categorization for user {current_user.user_id}")
+        return {"status": "success"}
+    except Exception as e:
+        logger.error(f"Error in apply_categorization endpoint: {str(e)}", exc_info=True)
+        raise
 

@@ -20,6 +20,7 @@ const AutoCategorizeWizard: React.FC<AutoCategorizeWizardProps> = ({ topics, onC
     const [instructions, setInstructions] = useState('');
     const [proposedChanges, setProposedChanges] = useState<AutoCategorizeResponse | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleTopicToggle = (topicId: number) => {
         setSelectedTopics(prev =>
@@ -34,19 +35,52 @@ const AutoCategorizeWizard: React.FC<AutoCategorizeWizardProps> = ({ topics, onC
     const handleAnalyze = async () => {
         setIsLoading(true);
         try {
-            const data = await topicsApi.analyzeCategorization({
+            const request = {
                 topics_to_keep: selectedTopics
                     .filter(t => t.isSelected)
                     .map(t => t.topic_id),
                 instructions: instructions || undefined,
-            });
-
+            };
+            const data = await topicsApi.analyzeCategorization(request);
             setProposedChanges(data);
             setStep(2);
         } catch (error) {
             console.error('Error analyzing categorization:', error);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleConfirm = async () => {
+        if (!proposedChanges) return;
+        
+        setIsSubmitting(true);
+        try {
+            console.log('Applying categorization changes:', {
+                newTopicsCount: proposedChanges.proposed_topics.filter(t => t.is_new).length,
+                totalTopicsCount: proposedChanges.proposed_topics.length,
+                totalEntriesCount: proposedChanges.proposed_topics.reduce((sum, topic) => sum + topic.entries.length, 0),
+                uncategorizedCount: proposedChanges.uncategorized_entries.length
+            });
+
+            await topicsApi.applyCategorization({
+                proposed_topics: proposedChanges.proposed_topics,
+                uncategorized_entries: proposedChanges.uncategorized_entries
+            });
+            
+            console.log('Successfully applied categorization changes');
+            onComplete();
+        } catch (error: any) {
+            console.error('Error applying categorization:', error);
+            // Log more details about the error if available
+            if (error?.response) {
+                console.error('Error response:', {
+                    status: error.response?.status,
+                    data: error.response?.data
+                });
+            }
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -242,10 +276,11 @@ const AutoCategorizeWizard: React.FC<AutoCategorizeWizardProps> = ({ topics, onC
                         Cancel
                     </button>
                     <button
-                        onClick={onComplete}
-                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                        onClick={handleConfirm}
+                        disabled={isSubmitting}
+                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400"
                     >
-                        Apply Changes
+                        {isSubmitting ? 'Applying...' : 'Apply Changes'}
                     </button>
                 </div>
             </div>

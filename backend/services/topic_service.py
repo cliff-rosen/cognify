@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from models import Topic, Entry
-from schemas import TopicCreate, TopicUpdate, TopicSearchResponse, TopicSuggestionResponse, ProposedEntry, ProposedTopic, AutoCategorizeResponse
+from schemas import TopicCreate, TopicUpdate, TopicSearchResponse, TopicSuggestionResponse, ProposedEntry, ProposedTopic, AutoCategorizeResponse, ApplyCategorizeRequest
 from fastapi import HTTPException, status
 from typing import Optional, List
 import logging
@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 async def get_topics(db: Session, user_id: int):
+    logger.info(f"Getting topics for user {user_id}")
     return db.query(Topic).filter(Topic.user_id == user_id).all()
 
 
@@ -342,4 +343,125 @@ async def analyze_categorization(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to analyze categorization"
+        )
+
+
+async def apply_categorization(
+    db: Session, 
+    user_id: int, 
+    changes: ApplyCategorizeRequest
+) -> None:
+    """Apply the provided categorization changes"""
+    try:
+        logger.info(f"Starting categorization changes for user {user_id}")
+        logger.info(
+            "Changes summary: "
+            f"{len(changes.proposed_topics)} topics, "
+            f"{sum(len(t.entries) for t in changes.proposed_topics)} entries to move, "
+            f"{len(changes.uncategorized_entries)} entries to uncategorize | "
+            f"New topics: {[t.topic_name for t in changes.proposed_topics if t.is_new]}"
+        )
+
+        # Create new topics first
+        new_topic_map = {}  # Maps topic_name to new topic_id
+        new_topics_count = 0
+        for proposed_topic in changes.proposed_topics:
+            if proposed_topic.is_new:
+                new_topics_count += 1
+                logger.info(
+                    f"Creating new topic: {proposed_topic.topic_name} | "
+                    f"Entry count: {len(proposed_topic.entries)} | "
+                    f"User: {user_id}"
+                )
+                new_topic = Topic(
+                    topic_name=proposed_topic.topic_name,
+                    user_id=user_id
+                )
+                db.add(new_topic)
+                db.flush()  # Get the new topic_id
+                new_topic_map[proposed_topic.topic_name] = new_topic.topic_id
+                logger.info(
+                    f"Created new topic {proposed_topic.topic_name} "
+                    f"with ID {new_topic.topic_id} for user {user_id}"
+                )
+        
+        # Update entry categorizations with more detailed logging
+        entries_moved = 0
+        for proposed_topic in changes.proposed_topics:
+            target_topic_id = (
+                proposed_topic.topic_id if not proposed_topic.is_new 
+                else new_topic_map[proposed_topic.topic_name]
+            )
+            
+            logger.info(
+                f"Processing entries for topic '{proposed_topic.topic_name}' "
+                f"(ID: {target_topic_id}) | "
+                f"Entry count: {len(proposed_topic.entries)} | "
+                f"User: {user_id}"
+            )
+            
+            for entry in proposed_topic.entries:
+                if entry.current_topic_id != target_topic_id:
+                    db_entry = db.query(Entry).filter(
+                        Entry.entry_id == entry.entry_id,
+                        Entry.user_id == user_id
+                    ).first()
+                    
+                    if db_entry:
+                        old_topic_id = db_entry.topic_id
+                        db_entry.topic_id = target_topic_id
+                        entries_moved += 1
+                        logger.debug(
+                            f"Moved entry {entry.entry_id} | "
+                            f"From: {old_topic_id} | "
+                            f"To: {target_topic_id} | "
+                            f"Content preview: {db_entry.content[:50]}... | "
+                            f"User: {user_id}"
+                        )
+        
+        # Handle uncategorized entries
+        uncategorized_count = 0
+        for entry in changes.uncategorized_entries:
+            db_entry = db.query(Entry).filter(
+                Entry.entry_id == entry.entry_id,
+                Entry.user_id == user_id
+            ).first()
+            
+            if db_entry:
+                old_topic_id = db_entry.topic_id
+                db_entry.topic_id = None
+                uncategorized_count += 1
+                logger.debug(
+                    f"Uncategorized entry {entry.entry_id} | "
+                    f"From: {old_topic_id} | "
+                    f"Content preview: {db_entry.content[:50]}... | "
+                    f"User: {user_id}"
+                )
+        
+        # Final summary with more context
+        logger.info(
+            f"Categorization changes complete for user {user_id}:\n"
+            f"- Created {new_topics_count} new topics\n"
+            f"- Moved {entries_moved} entries\n"
+            f"- Uncategorized {uncategorized_count} entries\n"
+            f"- Total topics affected: {len(changes.proposed_topics)}"
+        )
+        
+        db.commit()
+        
+    except Exception as e:
+        logger.error(
+            f"Error applying categorization for user {user_id}: {str(e)}", 
+            exc_info=True,
+            extra={
+                "user_id": user_id,
+                "proposed_topics_count": len(changes.proposed_topics),
+                "entries_count": sum(len(t.entries) for t in changes.proposed_topics),
+                "uncategorized_count": len(changes.uncategorized_entries)
+            }
+        )
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to apply categorization changes"
         )

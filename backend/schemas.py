@@ -191,3 +191,7 @@ class AutoCategorizeResponse(BaseModel):
     instructions_used: Optional[str] = None
     
     model_config = ConfigDict(from_attributes=True)
+
+class ApplyCategorizeRequest(BaseModel):
+    proposed_topics: List[ProposedTopic]
+    uncategorized_entries: List[ProposedEntry]
