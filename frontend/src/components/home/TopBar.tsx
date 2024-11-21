@@ -6,9 +6,10 @@ import { useDebounce } from '../../hooks/useDebounce'
 interface TopBarProps {
     onEntryAdded: (entry: any) => void
     onTopicCreated: (topic: Topic) => void
+    onTopicsChanged?: () => void
 }
 
-const TopBar: React.FC<TopBarProps> = ({ onEntryAdded, onTopicCreated }) => {
+const TopBar: React.FC<TopBarProps> = ({ onEntryAdded, onTopicCreated, onTopicsChanged }) => {
     const [entryText, setEntryText] = useState('')
     const [isLoading, setIsLoading] = useState(false)
     const [showSuggestions, setShowSuggestions] = useState(false)
@@ -73,6 +74,10 @@ const TopBar: React.FC<TopBarProps> = ({ onEntryAdded, onTopicCreated }) => {
             setSelectedTopicName('')
             setSuggestions([])
             setShowSuggestions(false)
+            
+            if (onTopicsChanged) {
+                onTopicsChanged()
+            }
         } catch (error) {
             console.error('Error creating entry:', error)
         } finally {

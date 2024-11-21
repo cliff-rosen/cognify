@@ -184,7 +184,7 @@ export default function HomeComponent() {
         <div className="h-screen flex flex-col dark:bg-gray-900">
             {/* Top Bar */}
             <div className="flex-none">
-                <TopBar onEntryAdded={handleEntryAdded} onTopicCreated={handleTopicCreated} />
+                <TopBar onEntryAdded={handleEntryAdded} onTopicCreated={handleTopicCreated} onTopicsChanged={refreshTopics} />
             </div>
 
             {/* Main Content Area */}
