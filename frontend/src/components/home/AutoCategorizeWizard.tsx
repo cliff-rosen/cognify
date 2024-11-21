@@ -76,13 +76,13 @@ const AutoCategorizeWizard: React.FC<AutoCategorizeWizardProps> = ({ topics, onC
 
             // Then check for empty topics
             const allTopics = await topicsApi.getTopics();
-            
+
             console.log('All topics before filtering:', allTopics.map(t => ({
                 name: t.topic_name,
                 count: t.entry_count,
                 isUncategorized: isUncategorizedTopic(t)
             })));
-            
+
             const emptyOnes = allTopics
                 .filter(topic => {
                     // Strictly check for entry_count === 0, not undefined
@@ -96,9 +96,9 @@ const AutoCategorizeWizard: React.FC<AutoCategorizeWizardProps> = ({ topics, onC
                     }
                     return isEmpty;
                 })
-                .map(topic => ({ 
-                    ...topic, 
-                    isSelectedForDeletion: false 
+                .map(topic => ({
+                    ...topic,
+                    isSelectedForDeletion: false
                 })) as EmptyTopic[];
 
             console.log('Final empty topics:', emptyOnes);
@@ -124,39 +124,39 @@ const AutoCategorizeWizard: React.FC<AutoCategorizeWizardProps> = ({ topics, onC
         }
     };
 
-    const handleEmptyTopicsCheck = async () => {
-        try {
-            // Get the latest topic data after categorization
-            const allTopics = await topicsApi.getTopics();
-            
-            console.log('All topics with counts:', allTopics.map(t => ({
-                name: t.topic_name,
-                count: t.entry_count
-            })));
-            
-            const emptyOnes = allTopics
-                .filter(topic => {
-                    // Filter out uncategorized and check entry_count
-                    const isEmpty = !isUncategorizedTopic(topic) && 
-                                  (topic.entry_count === 0 || topic.entry_count === undefined);
-                              
-                    if (isEmpty) {
-                        console.log('Found empty topic:', topic.topic_name, topic.entry_count);
-                    }
-                    return isEmpty;
-                })
-                .map(topic => ({ 
-                    ...topic, 
-                    isSelectedForDeletion: false 
-                })) as EmptyTopic[];
-                
-            console.log('Empty topics found:', emptyOnes);
-            setEmptyTopics(emptyOnes);
-            setStep(4);
-        } catch (error) {
-            console.error('Error fetching empty topics:', error);
-        }
-    };
+    // const handleEmptyTopicsCheck = async () => {
+    //     try {
+    //         // Get the latest topic data after categorization
+    //         const allTopics = await topicsApi.getTopics();
+
+    //         console.log('All topics with counts:', allTopics.map(t => ({
+    //             name: t.topic_name,
+    //             count: t.entry_count
+    //         })));
+
+    //         const emptyOnes = allTopics
+    //             .filter(topic => {
+    //                 // Filter out uncategorized and check entry_count
+    //                 const isEmpty = !isUncategorizedTopic(topic) && 
+    //                               (topic.entry_count === 0 || topic.entry_count === undefined);
+
+    //                 if (isEmpty) {
+    //                     console.log('Found empty topic:', topic.topic_name, topic.entry_count);
+    //                 }
+    //                 return isEmpty;
+    //             })
+    //             .map(topic => ({ 
+    //                 ...topic, 
+    //                 isSelectedForDeletion: false 
+    //             })) as EmptyTopic[];
+
+    //         console.log('Empty topics found:', emptyOnes);
+    //         setEmptyTopics(emptyOnes);
+    //         setStep(4);
+    //     } catch (error) {
+    //         console.error('Error fetching empty topics:', error);
+    //     }
+    // };
 
     const handleDeleteEmptyTopics = async () => {
         setIsSubmitting(true);
@@ -164,7 +164,7 @@ const AutoCategorizeWizard: React.FC<AutoCategorizeWizardProps> = ({ topics, onC
             const topicsToDelete = emptyTopics
                 .filter(topic => topic.isSelectedForDeletion)
                 .map(topic => topic.topic_id);
-            
+
             await Promise.all(topicsToDelete.map(id => topicsApi.deleteTopic(id)));
             onComplete();
         } catch (error) {
@@ -392,12 +392,12 @@ const AutoCategorizeWizard: React.FC<AutoCategorizeWizardProps> = ({ topics, onC
             <h3 className="text-lg font-medium mb-4 dark:text-gray-200">
                 Step 4: Clean Up Empty Topics
             </h3>
-            
+
             <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
                 <p className="text-gray-600 dark:text-gray-300 mb-4">
                     Select empty topics you'd like to delete:
                 </p>
-                
+
                 {emptyTopics.length === 0 ? (
                     <p className="text-gray-600 dark:text-gray-300 italic">
                         No empty topics found.
@@ -473,19 +473,17 @@ const AutoCategorizeWizard: React.FC<AutoCategorizeWizardProps> = ({ topics, onC
                                 className={`flex items-center ${stepNum < 4 ? 'flex-1' : ''}`}
                             >
                                 <div
-                                    className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                                        step >= stepNum
-                                            ? 'bg-blue-600 text-white'
-                                            : 'bg-gray-200 text-gray-600'
-                                    }`}
+                                    className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= stepNum
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-gray-200 text-gray-600'
+                                        }`}
                                 >
                                     {stepNum}
                                 </div>
                                 {stepNum < 4 && (
                                     <div
-                                        className={`flex-1 h-1 mx-2 ${
-                                            step > stepNum ? 'bg-blue-600' : 'bg-gray-200'
-                                        }`}
+                                        className={`flex-1 h-1 mx-2 ${step > stepNum ? 'bg-blue-600' : 'bg-gray-200'
+                                            }`}
                                     />
                                 )}
                             </div>
