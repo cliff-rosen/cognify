@@ -1,19 +1,65 @@
 from sqlalchemy.orm import Session
 from models import Topic, Entry
-from schemas import TopicCreate, TopicUpdate, TopicSearchResponse, TopicSuggestionResponse, ProposedEntry, ProposedTopic, AutoCategorizeResponse, ApplyCategorizeRequest
+from schemas import TopicCreate, TopicUpdate, TopicSearchResponse, TopicSuggestionResponse, ProposedEntry, ProposedTopic, AutoCategorizeResponse, ApplyCategorizeRequest, TopicResponse
 from fastapi import HTTPException, status
 from typing import Optional, List
 import logging
 from services import ai_service
 from datetime import datetime
 import random
+from sqlalchemy import func
 
 logger = logging.getLogger(__name__)
 
 
 async def get_topics(db: Session, user_id: int):
     logger.info(f"Getting topics for user {user_id}")
-    return db.query(Topic).filter(Topic.user_id == user_id).all()
+    
+    # Get topics with entry counts using a subquery
+    entry_counts = (
+        db.query(
+            Entry.topic_id, 
+            func.count(Entry.entry_id).label('entry_count')
+        )
+        .filter(Entry.user_id == user_id)
+        .group_by(Entry.topic_id)
+        .subquery()
+    )
+    
+    # Get topics with their counts
+    topics = (
+        db.query(Topic, func.coalesce(entry_counts.c.entry_count, 0).label('entry_count'))
+        .outerjoin(entry_counts, Topic.topic_id == entry_counts.c.topic_id)
+        .filter(Topic.user_id == user_id)
+        .all()
+    )
+    
+    # Get uncategorized count
+    uncategorized_count = (
+        db.query(func.count(Entry.entry_id))
+        .filter(Entry.user_id == user_id, Entry.topic_id.is_(None))
+        .scalar() or 0
+    )
+    
+    # Convert to list of Topic objects with entry_count attribute
+    result = []
+    
+    # Add uncategorized "topic" first
+    result.append(TopicResponse(
+        topic_id=-1,  # UNCATEGORIZED_TOPIC_ID
+        topic_name="Uncategorized",
+        user_id=user_id,
+        creation_date=datetime.utcnow(),
+        entry_count=uncategorized_count,
+        is_uncategorized=True
+    ).model_dump())
+    
+    # Add regular topics with their counts
+    for topic, count in topics:
+        topic.entry_count = count
+        result.append(topic)
+    
+    return result
 
 
 async def create_topic(db: Session, topic: TopicCreate, user_id: int):

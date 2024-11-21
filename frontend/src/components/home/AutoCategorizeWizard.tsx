@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Topic, ProposedEntry, AutoCategorizeResponse } from '../../lib/api/topicsApi';
+import { Topic, ProposedEntry, AutoCategorizeResponse, isUncategorizedTopic } from '../../lib/api/topicsApi';
 import { topicsApi } from '../../lib/api/topicsApi';
 
 interface AutoCategorizeWizardProps {
@@ -15,12 +15,16 @@ interface TopicWithSelection extends Topic {
 const AutoCategorizeWizard: React.FC<AutoCategorizeWizardProps> = ({ topics, onClose, onComplete }) => {
     const [step, setStep] = useState(1);
     const [selectedTopics, setSelectedTopics] = useState<TopicWithSelection[]>(
-        topics.map(topic => ({ ...topic, isSelected: false }))
+        topics
+            .filter(topic => !isUncategorizedTopic(topic))
+            .map(topic => ({ ...topic, isSelected: false }))
     );
     const [instructions, setInstructions] = useState('');
     const [proposedChanges, setProposedChanges] = useState<AutoCategorizeResponse | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    console.log('topics', topics);
 
     const handleTopicToggle = (topicId: number) => {
         setSelectedTopics(prev =>
@@ -53,7 +57,7 @@ const AutoCategorizeWizard: React.FC<AutoCategorizeWizardProps> = ({ topics, onC
 
     const handleConfirm = async () => {
         if (!proposedChanges) return;
-        
+
         setIsSubmitting(true);
         try {
             console.log('Applying categorization changes:', {
@@ -67,7 +71,7 @@ const AutoCategorizeWizard: React.FC<AutoCategorizeWizardProps> = ({ topics, onC
                 proposed_topics: proposedChanges.proposed_topics,
                 uncategorized_entries: proposedChanges.uncategorized_entries
             });
-            
+
             console.log('Successfully applied categorization changes');
             onComplete();
         } catch (error: any) {

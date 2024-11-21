@@ -61,6 +61,8 @@ class TopicResponse(BaseModel):
     user_id: int = Field(description="ID of the user who owns this topic")
     topic_name: str = Field(description="Name of the topic")
     creation_date: datetime = Field(description="When the topic was created")
+    entry_count: int = Field(description="Number of entries in this topic", default=0)
+    is_uncategorized: bool = Field(default=False, description="Whether this is the uncategorized topic")
 
     model_config = ConfigDict(from_attributes=True)
 

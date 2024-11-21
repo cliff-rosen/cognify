@@ -153,13 +153,10 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
             const newTopicId = targetTopicId === UNCATEGORIZED_TOPIC_ID ? null : targetTopicId
             await entriesApi.moveEntryToTopic(entry.entry_id, newTopicId)
 
-            if (onEntryMoved && (
-                selectedTopicId === null ||
-                selectedTopicId === entry.topic_id ||
-                selectedTopicId === targetTopicId ||
-                (entry.topic_id === null && selectedTopicId === UNCATEGORIZED_TOPIC_ID) ||
-                (targetTopicId === UNCATEGORIZED_TOPIC_ID && selectedTopicId === null)
-            )) {
+            const updatedTopics = await topicsApi.getTopics();
+            onTopicsChange(updatedTopics);
+
+            if (onEntryMoved) {
                 onEntryMoved()
             }
         } catch (error) {
@@ -310,11 +307,9 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                                                 {topic.topic_name}
                                             </span>
                                         </span>
-                                        {topic.entry_count !== undefined && (
-                                            <span className="text-sm text-gray-500 dark:text-gray-400">
-                                                {topic.entry_count}
-                                            </span>
-                                        )}
+                                        <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                                            {topic.entry_count || 0}
+                                        </span>
                                     </span>
                                     {!isUncategorizedTopic(topic) && (
                                         <div className="flex items-center gap-1">

@@ -5,7 +5,7 @@ import CenterWorkspace from '../components/home/CenterWorkspace'
 import RightSidebar from '../components/home/RightSidebar'
 import { useState, useRef } from 'react'
 import { Entry } from '../lib/api/entriesApi'
-import { Topic, UNCATEGORIZED_TOPIC_ID, UncategorizedTopic } from '../lib/api/topicsApi'
+import { Topic, UNCATEGORIZED_TOPIC_ID, UncategorizedTopic, topicsApi } from '../lib/api/topicsApi'
 
 export default function HomeComponent() {
     const { isAuthenticated, login, register, error } = useAuth()
@@ -70,6 +70,15 @@ export default function HomeComponent() {
             setPasswordError(null)
         }
     }
+
+    const refreshTopics = async () => {
+        try {
+            const fetchedTopics = await topicsApi.getTopics();
+            setTopics(fetchedTopics);
+        } catch (error) {
+            console.error('Error refreshing topics:', error);
+        }
+    };
 
     if (!isAuthenticated) {
         return (
@@ -199,6 +208,10 @@ export default function HomeComponent() {
                         <CenterWorkspace
                             ref={centerWorkspaceRef}
                             selectedTopicId={selectedTopicId}
+                            onEntriesMoved={() => {
+                                centerWorkspaceRef.current?.refreshEntries();
+                            }}
+                            onTopicsChanged={refreshTopics}
                         />
                     </div>
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react'
-import { Topic, UNCATEGORIZED_TOPIC_ID } from '../../lib/api/topicsApi'
+import { Topic, UNCATEGORIZED_TOPIC_ID, isUncategorizedTopic } from '../../lib/api/topicsApi'
 import { entriesApi, Entry } from '../../lib/api/entriesApi'
 import { topicsApi } from '../../lib/api/topicsApi'
 import { DragEvent } from 'react'
@@ -7,6 +7,8 @@ import AutoCategorizeWizard from './AutoCategorizeWizard';
 
 interface CenterWorkspaceProps {
     selectedTopicId: number | null;
+    onEntriesMoved?: () => void;
+    onTopicsChanged?: () => void;
 }
 
 export interface CenterWorkspaceHandle {
@@ -14,7 +16,7 @@ export interface CenterWorkspaceHandle {
 }
 
 const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
-    ({ selectedTopicId }, ref) => {
+    ({ selectedTopicId, onEntriesMoved, onTopicsChanged }, ref) => {
         const [_selectedTopic, setSelectedTopic] = useState<Topic | null>(null)
         const [entries, setEntries] = useState<Entry[]>([])
         const [isLoading, setIsLoading] = useState(false)
@@ -103,8 +105,8 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
             setIsLoadingTopics(true)
             try {
                 const topics = await topicsApi.getTopics()
-                // Cast the filtered topics to Topic[]
-                setAllTopics(topics.filter(topic => !('is_uncategorized' in topic)) as Topic[])
+                // Filter out the uncategorized topic
+                setAllTopics(topics.filter(topic => !isUncategorizedTopic(topic)) as Topic[])
             } catch (error) {
                 console.error('Error fetching topics:', error)
             } finally {
@@ -349,7 +351,13 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                         onClose={() => setShowAutoCategorizeModal(false)}
                         onComplete={async () => {
                             setShowAutoCategorizeModal(false);
-                            await fetchEntries(); // Refresh entries after categorization
+                            await fetchEntries(); // Refresh entries
+                            if (onTopicsChanged) {
+                                onTopicsChanged(); // Trigger topics refresh
+                            }
+                            if (onEntriesMoved) {
+                                onEntriesMoved(); // Keep existing callback
+                            }
                         }}
                     />
                 )}
