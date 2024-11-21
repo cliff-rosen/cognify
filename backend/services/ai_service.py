@@ -319,3 +319,104 @@ async def get_entry_assignments(
     except Exception as e:
         logger.error(f"Error getting entry assignments: {str(e)}")
         return []
+
+# Add new function for quick categorization
+async def get_quick_categorization_suggestions(entries: List[Entry], existing_topics: List[Topic]) -> List[dict]:
+    """
+    Get categorization suggestions for multiple entries.
+    Returns suggestions for each entry, including both new and existing topics.
+    """
+    try:
+        # Get all topic names for context
+        existing_topic_names = [topic.topic_name.lower() for topic in existing_topics]
+        
+        # Process each entry
+        results = []
+        for entry in entries:
+            suggestions = []
+            
+            # Create prompt for this entry
+            prompt = f"""Analyze this text entry and suggest appropriate categories for it. Consider both creating new categories and using existing ones.
+
+Text entry: "{entry.content}"
+
+Existing categories:
+{chr(10).join(f"- {name}" for name in existing_topic_names)}
+
+Return a JSON array of category suggestions, each with:
+- topic_name: suggested category name
+- is_new: boolean indicating if this is a new category
+- confidence_score: number between 0 and 1 indicating confidence
+
+Format example:
+[
+    {{"topic_name": "Machine Learning", "is_new": false, "confidence_score": 0.95}},
+    {{"topic_name": "Neural Networks", "is_new": true, "confidence_score": 0.85}}
+]
+
+Suggestions:"""
+
+            # Get suggestions from Claude
+            message = anthropic.messages.create(
+                model="claude-3-sonnet-20240229",
+                max_tokens=1000,
+                temperature=0,
+                messages=[{
+                    "role": "user",
+                    "content": prompt
+                }]
+            )
+            
+            # Parse response
+            try:
+                raw_suggestions = json.loads(message.content[0].text.strip())
+                
+                # Process each suggestion
+                for suggestion in raw_suggestions:
+                    # Clean up the topic name
+                    topic_name = suggestion["topic_name"].strip()
+                    is_new = suggestion["is_new"]
+                    confidence = float(suggestion["confidence_score"])
+                    
+                    # For existing topics, try to match with actual topic
+                    topic_id = None
+                    if not is_new:
+                        # Find matching existing topic
+                        for topic in existing_topics:
+                            if topic.topic_name.lower() == topic_name.lower():
+                                topic_id = topic.topic_id
+                                topic_name = topic.topic_name  # Use exact name from DB
+                                break
+                        
+                        # If no match found, mark as new
+                        if topic_id is None:
+                            is_new = True
+                    
+                    suggestions.append({
+                        "topic_id": topic_id,
+                        "topic_name": topic_name,
+                        "is_new": is_new,
+                        "confidence_score": confidence
+                    })
+                
+                # Sort suggestions by confidence
+                suggestions.sort(key=lambda x: x["confidence_score"], reverse=True)
+                
+                # Take top 3 suggestions
+                suggestions = suggestions[:3]
+                
+                results.append({
+                    "entry_id": entry.entry_id,
+                    "content": entry.content,
+                    "suggestions": suggestions
+                })
+                
+            except json.JSONDecodeError:
+                logger.error(f"Failed to parse AI response for entry {entry.entry_id}")
+                continue
+                
+        return results
+        
+    except Exception as e:
+        logger.error(f"Error in quick categorization suggestions: {str(e)}")
+        raise

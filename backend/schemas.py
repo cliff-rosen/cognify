@@ -197,3 +197,20 @@ class AutoCategorizeResponse(BaseModel):
 class ApplyCategorizeRequest(BaseModel):
     proposed_topics: List[ProposedTopic]
     uncategorized_entries: List[ProposedEntry]
+
+class QuickCategorizeRequest(BaseModel):
+    entry_ids: List[int]
+
+class CategorySuggestion(BaseModel):
+    topic_id: Optional[int] = None
+    topic_name: str
+    is_new: bool
+    confidence_score: float
+
+class EntryProposal(BaseModel):
+    entry_id: int
+    content: str
+    suggestions: List[CategorySuggestion]
+
+class QuickCategorizeResponse(BaseModel):
+    proposals: List[EntryProposal]

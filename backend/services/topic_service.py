@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from models import Topic, Entry
-from schemas import TopicCreate, TopicUpdate, TopicSearchResponse, TopicSuggestionResponse, ProposedEntry, ProposedTopic, AutoCategorizeResponse, ApplyCategorizeRequest, TopicResponse
+from schemas import TopicCreate, TopicUpdate, TopicSearchResponse, TopicSuggestionResponse, ProposedEntry, ProposedTopic, AutoCategorizeResponse, ApplyCategorizeRequest, TopicResponse, QuickCategorizeResponse
 from fastapi import HTTPException, status
 from typing import Optional, List
 import logging
@@ -510,4 +510,36 @@ async def apply_categorization(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to apply categorization changes"
+        )
+
+
+async def get_quick_categorization(
+    db: Session, 
+    user_id: int, 
+    entry_ids: List[int]
+) -> QuickCategorizeResponse:
+    """Get quick categorization suggestions for selected entries"""
+    try:
+        # Get existing topics for the user
+        existing_topics = db.query(Topic).filter(Topic.user_id == user_id).all()
+        
+        # Get the selected entries
+        entries = db.query(Entry).filter(
+            Entry.entry_id.in_(entry_ids),
+            Entry.user_id == user_id
+        ).all()
+
+        # Get suggestions from AI service
+        proposals = await ai_service.get_quick_categorization_suggestions(
+            entries=entries,
+            existing_topics=existing_topics
+        )
+
+        return QuickCategorizeResponse(proposals=proposals)
+
+    except Exception as e:
+        logger.error(f"Error in quick categorization: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate categorization suggestions"
         )

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 from typing import List
 from database import get_db
-from schemas import TopicResponse, TopicCreate, TopicUpdate, TopicSearchResponse, TopicSuggestionResponse, AutoCategorizeResponse, AutoCategorizeRequest, ApplyCategorizeRequest
+from schemas import TopicResponse, TopicCreate, TopicUpdate, TopicSearchResponse, TopicSuggestionResponse, AutoCategorizeResponse, AutoCategorizeRequest, ApplyCategorizeRequest, QuickCategorizeRequest, QuickCategorizeResponse
 from dependencies import CurrentUser
 from models import Topic
 from services import topic_service, auth_service
@@ -334,4 +334,21 @@ async def apply_categorization(
     except Exception as e:
         logger.error(f"Error in apply_categorization endpoint: {str(e)}", exc_info=True)
         raise
+
+@router.post(
+    "/quick-categorize",
+    response_model=QuickCategorizeResponse,
+    summary="Get category suggestions for selected entries"
+)
+async def quick_categorize(
+    request: QuickCategorizeRequest,
+    current_user = Depends(auth_service.validate_token),
+    db: Session = Depends(get_db)
+):
+    """Get category suggestions for the selected entries"""
+    return await topic_service.get_quick_categorization(
+        db,
+        current_user.user_id,
+        request.entry_ids
+    )
 
