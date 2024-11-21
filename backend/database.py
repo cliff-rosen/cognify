@@ -2,7 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import pymysql
 pymysql.install_as_MySQLdb()
-from config import settings
+from config.settings import settings
 from models import Base
 
 # Create engine with AWS RDS connection

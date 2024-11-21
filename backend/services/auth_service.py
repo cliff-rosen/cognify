@@ -8,7 +8,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from models import User
 from schemas import UserCreate, Token
-from config import settings
+from config.settings import settings
 from database import get_db
 import logging
 import time
@@ -123,3 +123,4 @@ async def validate_token(
             status_code=401, 
             detail=f"Invalid token: {str(e)}"
         )
+
