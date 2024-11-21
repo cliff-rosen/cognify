@@ -185,6 +185,9 @@ async def get_proposed_topics(
             logger.info("No entries to categorize, returning default topic")
             return ["New Topic"]
 
+        # Get existing topic names for filtering
+        existing_topic_names = {topic.topic_name.lower() for topic in kept_topics}
+        
         # Construct the prompt
         prompt = "You are a topic organization expert. Based on the following information, suggest appropriate new topics for uncategorized entries.\n\n"
         
@@ -217,15 +220,21 @@ async def get_proposed_topics(
             }]
         )
         
-        # Parse response into list of topic names
-        topic_names = [
+        # Parse response and filter out duplicates
+        suggested_names = [
             line.strip() 
             for line in message.content[0].text.split('\n') 
-            if line.strip()
+            if line.strip() and line.strip().lower() not in existing_topic_names
         ]
         
-        logger.info(f"AI suggested {len(topic_names)} new topics: {topic_names}")
-        return topic_names
+        logger.info("AI suggested topics before filtering: %s", message.content[0].text.split('\n'))
+        logger.info("AI suggested topics after filtering: %s", suggested_names)
+        
+        # For the set difference, calculate it separately to avoid f-string issues
+        filtered_out = set(line.strip() for line in message.content[0].text.split('\n')) - set(suggested_names)
+        logger.info("Filtered out topics: %s", filtered_out)
+        
+        return suggested_names
 
     except Exception as e:
         logger.error(f"Error getting proposed topics: {str(e)}")
