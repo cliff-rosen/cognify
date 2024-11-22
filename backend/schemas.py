@@ -214,3 +214,61 @@ class EntryProposal(BaseModel):
 
 class QuickCategorizeResponse(BaseModel):
     proposals: List[EntryProposal]
+
+# Add these new schema classes
+
+class TopicSuggestion(BaseModel):
+    """Topic suggestion with confidence"""
+    topic_id: Optional[int] = None
+    topic_name: str
+    confidence: float
+
+class TopicAssignment(BaseModel):
+    """Entry assignment details for a topic"""
+    entry_id: int
+    content: str
+    confidence: float
+    alternative_topics: List[TopicSuggestion]
+
+class ExistingTopicAssignment(BaseModel):
+    """Assignments to an existing topic"""
+    topic_id: int
+    topic_name: str
+    entries: List[TopicAssignment]
+
+class NewTopicProposal(BaseModel):
+    """Proposed new topic with entries"""
+    suggested_name: str
+    confidence: float
+    rationale: str
+    similar_existing_topics: List[TopicSuggestion]
+    entries: List[TopicAssignment]
+
+class UnassignedEntry(BaseModel):
+    """Entry that couldn't be confidently categorized"""
+    entry_id: int
+    content: str
+    reason: str
+    top_suggestions: List[TopicSuggestion]
+
+class CategoryMetadata(BaseModel):
+    """Metadata about the categorization process"""
+    total_entries_analyzed: int
+    assigned_to_existing: int
+    assigned_to_new: int
+    unassigned: int
+    average_confidence: float
+    processing_time_ms: int
+
+class QuickCategorizeUncategorizedRequest(BaseModel):
+    """Request parameters for quick categorization of uncategorized entries"""
+    min_confidence_threshold: Optional[float] = Field(default=0.7, ge=0, le=1)
+    max_new_topics: Optional[int] = Field(default=3, ge=0, le=10)
+    instructions: Optional[str] = Field(default=None)
+
+class QuickCategorizeUncategorizedResponse(BaseModel):
+    """Response for quick categorization of uncategorized entries"""
+    existing_topic_assignments: List[ExistingTopicAssignment]
+    new_topic_proposals: List[NewTopicProposal]
+    unassigned_entries: List[UnassignedEntry]
+    metadata: CategoryMetadata

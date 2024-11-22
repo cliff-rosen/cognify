@@ -3,9 +3,12 @@ from typing import Optional, List, Dict, Tuple
 import os
 import logging
 import json
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 from models import Topic, Entry
-from schemas import ProposedTopic, ProposedEntry
+from schemas import (
+    ProposedTopic, ProposedEntry, TopicSuggestion, 
+    TopicAssignment, NewTopicProposal
+)
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +18,7 @@ try:
 except Exception as e:
     logger.error(f"Failed to initialize Anthropic client: {str(e)}")
     raise
+
 
 def calculate_similarity_scores(topics: List[str], query: str) -> List[float]:
     """
@@ -81,6 +85,7 @@ Scores:"""
     except Exception as e:
         logger.error(f"Error calculating similarity scores: {str(e)}")
         return [0.0] * len(topics)
+
 
 async def suggest_topic_name(text: str) -> str:
     """
@@ -213,7 +218,7 @@ async def get_proposed_topics(
         message = anthropic.messages.create(
             model="claude-3-sonnet-20240229",
             max_tokens=1000,
-            temperature=0.7,
+            temperature=0.1,
             messages=[{
                 "role": "user",
                 "content": prompt
@@ -420,3 +425,107 @@ Suggestions:"""
     except Exception as e:
         logger.error(f"Error in quick categorization suggestions: {str(e)}")
         raise
+
+
+    ####### ARCHIVE #######
+
+async def analyze_entries_for_categorization(
+    entries: List[Entry],
+    existing_topics: List[Topic],
+    min_confidence: float,
+    max_new_topics: int,
+    instructions: Optional[str]
+) -> Dict[Entry, List[TopicSuggestion]]:
+    """Analyze entries and suggest categorizations"""
+    
+    try:
+        # Format the prompt
+        prompt = f"""Analyze these entries and suggest appropriate categorizations.
+        
+Existing topics:
+{chr(10).join(f"- {topic.topic_name}" for topic in existing_topics)}
+
+Entries to categorize:
+{chr(10).join(f"Entry {i+1}: {entry.content[:200]}..." for i, entry in enumerate(entries))}
+
+{instructions if instructions else ""}
+
+For each entry, suggest the best topic matches (either existing or new) with confidence scores.
+Consider similarity to existing topics and content patterns.
+Provide rationale for any new topics suggested.
+
+Return a JSON object with this structure:
+{{
+    "entries": [
+        {{
+            "entry_index": 1,
+            "suggestions": [
+                {{
+                    "topic_name": "string",
+                    "is_new": boolean,
+                    "confidence": float,
+                    "rationale": "string",
+                    "similar_topics": [
+                        {{
+                            "topic_name": "string",
+                            "confidence": float
+                        }}
+                    ]
+                }}
+            ]
+        }}
+    ]
+}}
+"""
+
+        message = anthropic.messages.create(
+            model="claude-3-sonnet-20240229",
+            max_tokens=2000,
+            temperature=0.5,
+            messages=[{
+                "role": "user",
+                "content": prompt
+            }]
+        )
+
+        # Parse AI response
+        raw_suggestions = json.loads(message.content[0].text)
+        
+        # Process suggestions into required format
+        processed_suggestions: Dict[Entry, List[TopicSuggestion]] = {}
+        
+        for entry_data in raw_suggestions["entries"]:
+            entry_index = entry_data["entry_index"] - 1  # Convert to 0-based index
+            entry = entries[entry_index]
+            
+            entry_suggestions = []
+            for suggestion in entry_data["suggestions"]:
+                topic_name = suggestion["topic_name"]
+                is_new = suggestion["is_new"]
+                confidence = float(suggestion["confidence"])
+                
+                # For existing topics, try to match with actual topic
+                topic_id = None
+                if not is_new:
+                    for topic in existing_topics:
+                        if topic.topic_name.lower() == topic_name.lower():
+                            topic_id = topic.topic_id
+                            topic_name = topic.topic_name  # Use exact name from DB
+                            break
+                
+                entry_suggestions.append(TopicSuggestion(
+                    topic_id=topic_id,
+                    topic_name=topic_name,
+                    confidence=confidence
+                ))
+            
+            processed_suggestions[entry] = entry_suggestions
+        
+        return processed_suggestions
+
+    except Exception as e:
+        logger.error(f"Error in AI analysis: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to analyze entries"
+        )

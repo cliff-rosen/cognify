@@ -1,34 +1,15 @@
 from sqlalchemy.orm import Session
 from models import Topic, Entry
-from schemas import (
-    TopicCreate, TopicUpdate, TopicSearchResponse, TopicSuggestionResponse, 
-    ProposedEntry, ProposedTopic, AutoCategorizeResponse, ApplyCategorizeRequest, 
-    TopicResponse, QuickCategorizeResponse, TopicSuggestion, TopicAssignment, 
-    ExistingTopicAssignment, NewTopicProposal, UnassignedEntry, CategoryMetadata, 
-    QuickCategorizeUncategorizedRequest, QuickCategorizeUncategorizedResponse
-)
+from schemas import TopicCreate, TopicUpdate, TopicSearchResponse, TopicSuggestionResponse, ProposedEntry, ProposedTopic, AutoCategorizeResponse, ApplyCategorizeRequest, TopicResponse, QuickCategorizeResponse
 from fastapi import HTTPException, status
-from typing import Optional, List, Dict
+from typing import Optional, List
 import logging
 from services import ai_service
 from datetime import datetime
 import random
 from sqlalchemy import func
-import time
-from statistics import mean
-from collections import defaultdict
 
 logger = logging.getLogger(__name__)
-
-
-################## CRUD Services ##################
-
-async def create_topic(db: Session, topic: TopicCreate, user_id: int):
-    db_topic = Topic(topic_name=topic.topic_name, user_id=user_id)
-    db.add(db_topic)
-    db.commit()
-    db.refresh(db_topic)
-    return db_topic 
 
 
 async def get_topics(db: Session, user_id: int):
@@ -81,6 +62,14 @@ async def get_topics(db: Session, user_id: int):
     return result
 
 
+async def create_topic(db: Session, topic: TopicCreate, user_id: int):
+    db_topic = Topic(topic_name=topic.topic_name, user_id=user_id)
+    db.add(db_topic)
+    db.commit()
+    db.refresh(db_topic)
+    return db_topic 
+
+
 async def update_topic(db: Session, topic_id: int, topic_update: TopicUpdate, user_id: int):
     """Update a topic if it belongs to the user"""
     try:
@@ -119,46 +108,6 @@ async def update_topic(db: Session, topic_id: int, topic_update: TopicUpdate, us
         )
 
 
-async def delete_topic(db: Session, topic_id: int, user_id: int):
-    """Delete a topic and all its associated entries if it belongs to the user"""
-    try:
-        # Get existing topic
-        db_topic = db.query(Topic).filter(Topic.topic_id == topic_id).first()
-        if not db_topic:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Topic not found"
-            )
-            
-        # Verify ownership
-        if db_topic.user_id != user_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Topic belongs to another user"
-            )
-            
-        # Delete associated entries first
-        db.query(Entry).filter(Entry.topic_id == topic_id).delete()
-        
-        # Delete the topic
-        db.delete(db_topic)
-        db.commit()
-        
-        logger.info(f"Deleted topic {topic_id} and its entries for user {user_id}")
-        
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        logger.error(f"Error deleting topic: {str(e)}")
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to delete topic"
-        )
-
-
-################## AI Enabled Services ##################
-
 def calculate_topic_match_score(topic_name: str, query: str) -> float:
     """
     Calculate how well a topic name matches a search query using AI.
@@ -175,38 +124,6 @@ def calculate_topic_match_score(topic_name: str, query: str) -> float:
     except Exception as e:
         logger.error(f"Error calculating topic match score: {str(e)}")
         return 0.0
-
-
-async def get_quick_categorization(
-    db: Session, 
-    user_id: int, 
-    entry_ids: List[int]
-) -> QuickCategorizeResponse:
-    """Get quick categorization suggestions for selected entries"""
-    try:
-        # Get existing topics for the user
-        existing_topics = db.query(Topic).filter(Topic.user_id == user_id).all()
-        
-        # Get the selected entries
-        entries = db.query(Entry).filter(
-            Entry.entry_id.in_(entry_ids),
-            Entry.user_id == user_id
-        ).all()
-
-        # Get suggestions from AI service
-        proposals = await ai_service.get_quick_categorization_suggestions(
-            entries=entries,
-            existing_topics=existing_topics
-        )
-
-        return QuickCategorizeResponse(proposals=proposals)
-
-    except Exception as e:
-        logger.error(f"Error in quick categorization: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to generate categorization suggestions"
-        )
 
 
 async def search_topics(db: Session, query: str, user_id: int) -> List[TopicSearchResponse]:
@@ -252,6 +169,64 @@ async def search_topics(db: Session, query: str, user_id: int) -> List[TopicSear
     ]
 
 
+async def delete_topic(db: Session, topic_id: int, user_id: int):
+    """Delete a topic and all its associated entries if it belongs to the user"""
+    try:
+        # Get existing topic
+        db_topic = db.query(Topic).filter(Topic.topic_id == topic_id).first()
+        if not db_topic:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Topic not found"
+            )
+            
+        # Verify ownership
+        if db_topic.user_id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Topic belongs to another user"
+            )
+            
+        # Delete associated entries first
+        db.query(Entry).filter(Entry.topic_id == topic_id).delete()
+        
+        # Delete the topic
+        db.delete(db_topic)
+        db.commit()
+        
+        logger.info(f"Deleted topic {topic_id} and its entries for user {user_id}")
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error deleting topic: {str(e)}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete topic"
+        )
+
+
+async def suggest_topic_name(db: Session, text: str, user_id: int) -> dict:
+    """
+    Suggests a topic name based on the provided text using AI.
+    Uses the AI service to generate a concise, relevant topic name.
+    """
+    try:
+        # Use AI service to generate topic suggestion
+        suggested_name = await ai_service.suggest_topic_name(text)
+        
+        # Ensure the suggestion isn't too long
+        if len(suggested_name) > 50:
+            suggested_name = suggested_name[:47] + "..."
+            
+        return {"suggested_name": suggested_name}
+        
+    except Exception as e:
+        logger.error(f"Error suggesting topic name: {str(e)}")
+        return {"suggested_name": "New Topic"}
+
+
 async def get_topic_suggestions(db: Session, text: str, user_id: int) -> List[TopicSearchResponse]:
     try:
         results = []
@@ -287,27 +262,6 @@ async def get_topic_suggestions(db: Session, text: str, user_id: int) -> List[To
     except Exception as e:
         logger.error(f"Error getting topic suggestions: {str(e)}")
         return []
-
-
-
-async def suggest_topic_name(db: Session, text: str, user_id: int) -> dict:
-    """
-    Suggests a topic name based on the provided text using AI.
-    Uses the AI service to generate a concise, relevant topic name.
-    """
-    try:
-        # Use AI service to generate topic suggestion
-        suggested_name = await ai_service.suggest_topic_name(text)
-        
-        # Ensure the suggestion isn't too long
-        if len(suggested_name) > 50:
-            suggested_name = suggested_name[:47] + "..."
-            
-        return {"suggested_name": suggested_name}
-        
-    except Exception as e:
-        logger.error(f"Error suggesting topic name: {str(e)}")
-        return {"suggested_name": "New Topic"}
 
 
 async def analyze_categorization(
@@ -559,166 +513,33 @@ async def apply_categorization(
         )
 
 
-async def quick_categorize_uncategorized(
-    db: Session,
-    user_id: int,
-    min_confidence: float = 0.7,
-    max_new_topics: int = 3,
-    instructions: Optional[str] = None
-) -> QuickCategorizeUncategorizedResponse:
-    """Analyze and categorize uncategorized entries"""
-    
-    start_time = time.time()
-    
+async def get_quick_categorization(
+    db: Session, 
+    user_id: int, 
+    entry_ids: List[int]
+) -> QuickCategorizeResponse:
+    """Get quick categorization suggestions for selected entries"""
     try:
-        # Get uncategorized entries
-        uncategorized_entries = (
-            db.query(Entry)
-            .filter(Entry.user_id == user_id, Entry.topic_id.is_(None))
-            .all()
-        )
-        
-        if not uncategorized_entries:
-            return QuickCategorizeUncategorizedResponse(
-                existing_topic_assignments=[],
-                new_topic_proposals=[],
-                unassigned_entries=[],
-                metadata=CategoryMetadata(
-                    total_entries_analyzed=0,
-                    assigned_to_existing=0,
-                    assigned_to_new=0,
-                    unassigned=0,
-                    average_confidence=0.0,
-                    processing_time_ms=int((time.time() - start_time) * 1000)
-                )
-            )
-
-        # Get existing topics
+        # Get existing topics for the user
         existing_topics = db.query(Topic).filter(Topic.user_id == user_id).all()
         
-        # Get AI suggestions for all entries
-        suggestions = await ai_service.analyze_entries_for_categorization(
-            entries=uncategorized_entries,
-            existing_topics=existing_topics,
-            min_confidence=min_confidence,
-            max_new_topics=max_new_topics,
-            instructions=instructions
+        # Get the selected entries
+        entries = db.query(Entry).filter(
+            Entry.entry_id.in_(entry_ids),
+            Entry.user_id == user_id
+        ).all()
+
+        # Get suggestions from AI service
+        proposals = await ai_service.get_quick_categorization_suggestions(
+            entries=entries,
+            existing_topics=existing_topics
         )
-        
-        # Process suggestions into response format
-        existing_assignments = defaultdict(list)
-        new_topics = []
-        unassigned = []
-        all_confidences = []
-        
-        for entry, entry_suggestions in suggestions.items():
-            best_match = max(entry_suggestions, key=lambda x: x.confidence)
-            
-            if best_match.confidence < min_confidence:
-                # Entry doesn't meet confidence threshold
-                unassigned.append(UnassignedEntry(
-                    entry_id=entry.entry_id,
-                    content=entry.content,
-                    reason="No confident matches found",
-                    top_suggestions=[
-                        TopicSuggestion(
-                            topic_id=s.topic_id,
-                            topic_name=s.topic_name,
-                            confidence=s.confidence
-                        ) for s in entry_suggestions[:3]
-                    ]
-                ))
-                continue
-                
-            if best_match.topic_id:  # Existing topic
-                existing_assignments[best_match.topic_id].append(
-                    TopicAssignment(
-                        entry_id=entry.entry_id,
-                        content=entry.content,
-                        confidence=best_match.confidence,
-                        alternative_topics=[
-                            TopicSuggestion(
-                                topic_id=s.topic_id,
-                                topic_name=s.topic_name,
-                                confidence=s.confidence
-                            ) for s in entry_suggestions[1:3]  # Next 2 best matches
-                        ]
-                    )
-                )
-            else:  # New topic
-                # Find or create new topic proposal
-                new_topic = next(
-                    (t for t in new_topics if t.topic_name == best_match.topic_name),
-                    None
-                )
-                if not new_topic:
-                    new_topic = NewTopicProposal(
-                        suggested_name=best_match.topic_name,
-                        confidence=best_match.confidence,
-                        rationale="Multiple related entries found",
-                        similar_existing_topics=[],
-                        entries=[]
-                    )
-                    new_topics.append(new_topic)
-                
-                # Add entry to new topic
-                new_topic.entries.append(
-                    TopicAssignment(
-                        entry_id=entry.entry_id,
-                        content=entry.content,
-                        confidence=best_match.confidence,
-                        alternative_topics=[
-                            TopicSuggestion(
-                                topic_id=s.topic_id,
-                                topic_name=s.topic_name,
-                                confidence=s.confidence
-                            ) for s in entry_suggestions[1:3]
-                        ]
-                    )
-                )
-                
-                # Update topic confidence based on all its entries
-                new_topic.confidence = mean(e.confidence for e in new_topic.entries)
-            
-            all_confidences.append(best_match.confidence)
-        
-        # Format response
-        response = QuickCategorizeUncategorizedResponse(
-            existing_topic_assignments=[
-                ExistingTopicAssignment(
-                    topic_id=topic_id,
-                    topic_name=next(t.topic_name for t in existing_topics if t.topic_id == topic_id),
-                    entries=entries  # entries is already a list of TopicAssignment objects
-                )
-                for topic_id, entries in existing_assignments.items()
-            ],
-            new_topic_proposals=[
-                NewTopicProposal(
-                    suggested_name=topic.topic_name,
-                    confidence=topic.confidence,
-                    rationale=topic.rationale if hasattr(topic, 'rationale') else "Multiple related entries found",
-                    similar_existing_topics=topic.similar_existing_topics if hasattr(topic, 'similar_existing_topics') else [],
-                    entries=topic.entries if hasattr(topic, 'entries') else []
-                )
-                for topic in new_topics
-            ],
-            unassigned_entries=unassigned,
-            metadata=CategoryMetadata(
-                total_entries_analyzed=len(uncategorized_entries),
-                assigned_to_existing=sum(len(entries) for entries in existing_assignments.values()),  # Fixed this line
-                assigned_to_new=len(new_topics),  # Changed this to count new topics
-                unassigned=len(unassigned),
-                average_confidence=mean(all_confidences) if all_confidences else 0.0,
-                processing_time_ms=int((time.time() - start_time) * 1000)
-            )
-        )
-        
-        return response
+
+        return QuickCategorizeResponse(proposals=proposals)
 
     except Exception as e:
-        logger.error(f"Error in quick categorization: {str(e)}", exc_info=True)
+        logger.error(f"Error in quick categorization: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to analyze entries for categorization"
+            detail="Failed to generate categorization suggestions"
         )
-

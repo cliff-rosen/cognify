@@ -1,23 +1,16 @@
-from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 from typing import List
 from database import get_db
-from schemas import (
-    TopicResponse, TopicCreate, TopicUpdate, TopicSearchResponse, 
-    TopicSuggestionResponse, AutoCategorizeResponse, AutoCategorizeRequest, 
-    ApplyCategorizeRequest, QuickCategorizeRequest, QuickCategorizeResponse,
-    QuickCategorizeUncategorizedRequest, QuickCategorizeUncategorizedResponse
-)
-from models import Topic, User
+from schemas import TopicResponse, TopicCreate, TopicUpdate, TopicSearchResponse, TopicSuggestionResponse, AutoCategorizeResponse, AutoCategorizeRequest, ApplyCategorizeRequest, QuickCategorizeRequest, QuickCategorizeResponse
+from dependencies import CurrentUser
+from models import Topic
 from services import topic_service, auth_service
 import logging
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-
-################## CRUD Routes ##################
 
 @router.post(
     "/",
@@ -142,12 +135,81 @@ async def delete_topic(
     await topic_service.delete_topic(db, topic_id, current_user.user_id)
     return None
 
+@router.get(
+    "/search/{query}",
+    response_model=List[TopicSearchResponse],
+    summary="Search topics by name",
+    responses={
+        200: {
+            "description": "List of topics matching the search query",
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "array",
+                        "items": {"$ref": "#/components/schemas/TopicSearchResponse"}
+                    }
+                }
+            }
+        },
+        401: {"description": "Not authenticated"}
+    }
+)
+async def search_topics(
+    query: str,
+    current_user = Depends(auth_service.validate_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Search topics for the authenticated user based on a query string
+    
+    Parameters:
+    - **query**: Search string to match against topic names
+    
+    Returns a list of topics sorted by match score (highest to lowest)
+    """
+    logger.info(f"search_topics endpoint called with query: {query}")
+    return await topic_service.search_topics(db, query, current_user.user_id)
+
+
 ################## AI Enabled Routes ##################
+
+@router.post(
+    "/suggest",
+    response_model=TopicSuggestionResponse,
+    summary="Suggest a topic name based on entry text",
+    responses={
+        200: {
+            "description": "Topic name suggestion successfully generated",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "suggested_name": "Machine Learning"
+                    }
+                }
+            }
+        },
+        401: {"description": "Not authenticated"},
+        422: {"description": "Validation error"}
+    }
+)
+async def suggest_topic_name(
+    text: str,
+    current_user = Depends(auth_service.validate_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Generate a topic name suggestion based on entry text
+    
+    Parameters:
+    - **text**: The entry text to analyze for topic suggestion
+    """
+    logger.info("suggest_topic_name endpoint called")
+    return await topic_service.suggest_topic_name(db, text, current_user.user_id)
 
 @router.get(
     "/suggestions",
     response_model=List[TopicSearchResponse],
-    summary="Get ranked topic list and one suggested topic",
+    summary="Get topic suggestions and search results",
     responses={
         200: {
             "description": "Combined list of topic suggestions and search results",
@@ -294,128 +356,4 @@ async def quick_categorize(
         current_user.user_id,
         request.entry_ids
     )
-
-@router.post(
-    "/quick-categorize-uncategorized",
-    response_model=QuickCategorizeUncategorizedResponse,
-    summary="Suggest categorization for uncategorized entries",
-    responses={
-        200: {
-            "description": "Successfully analyzed uncategorized entries",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "existing_topic_assignments": [{
-                            "topic_id": 1,
-                            "topic_name": "Machine Learning",
-                            "entries": [{
-                                "entry_id": 101,
-                                "content": "Learning about neural networks",
-                                "confidence": 0.92,
-                                "alternative_topics": [{
-                                    "topic_id": 2,
-                                    "topic_name": "Data Science",
-                                    "confidence": 0.75
-                                }]
-                            }]
-                        }],
-                        "new_topic_proposals": [{
-                            "suggested_name": "Web Development",
-                            "confidence": 0.88,
-                            "rationale": "Multiple entries about frontend frameworks",
-                            "similar_existing_topics": [{
-                                "topic_id": 3,
-                                "topic_name": "Programming",
-                                "confidence": 0.65
-                            }],
-                            "entries": [{
-                                "entry_id": 102,
-                                "content": "Learning React hooks",
-                                "confidence": 0.88,
-                                "alternative_topics": []
-                            }]
-                        }],
-                        "unassigned_entries": [{
-                            "entry_id": 103,
-                            "content": "Mixed topic content",
-                            "reason": "No clear topic match",
-                            "top_suggestions": [{
-                                "topic_id": 1,
-                                "topic_name": "Machine Learning",
-                                "confidence": 0.45
-                            }]
-                        }],
-                        "metadata": {
-                            "total_entries_analyzed": 3,
-                            "assigned_to_existing": 1,
-                            "assigned_to_new": 1,
-                            "unassigned": 1,
-                            "average_confidence": 0.75,
-                            "processing_time_ms": 1234
-                        }
-                    }
-                }
-            }
-        },
-        400: {"description": "Invalid parameters"},
-        401: {"description": "Not authenticated"},
-        500: {"description": "Analysis failed"}
-    }
-)
-async def quick_categorize_uncategorized(
-    request: QuickCategorizeUncategorizedRequest,
-    current_user: User = Depends(auth_service.validate_token),
-    db: Session = Depends(get_db)
-) -> QuickCategorizeUncategorizedResponse:
-    """
-    Analyze all uncategorized entries for a user and suggest assignments to existing topics
-    or propose new topics where appropriate.
-
-    The endpoint will:
-    1. Fetch all uncategorized entries for the user
-    2. Attempt to match entries to existing topics
-    3. Suggest new topics for entries that don't fit well in existing ones
-    4. Provide confidence scores and alternative suggestions for each assignment
-    5. Include explanations for new topic proposals and unassigned entries
-
-    Parameters:
-        - min_confidence_threshold: Minimum confidence score for assignment (default: 0.7)
-        - max_new_topics: Maximum number of new topics to suggest (default: 3)
-        - instructions: Optional guidance for the categorization process
-    """
-    logger.info(f"Quick categorize uncategorized called for user {current_user.user_id}")
-    
-    try:
-        response = await topic_service.quick_categorize_uncategorized(
-            db=db,
-            user_id=current_user.user_id,
-            min_confidence=request.min_confidence_threshold,
-            max_new_topics=request.max_new_topics,
-            instructions=request.instructions
-        )
-        
-        logger.info(
-            f"Quick categorization complete for user {current_user.user_id}:\n"
-            f"Total entries: {response.metadata.total_entries_analyzed}\n"
-            f"Assigned to existing: {response.metadata.assigned_to_existing}\n"
-            f"Assigned to new: {response.metadata.assigned_to_new}\n"
-            f"Unassigned: {response.metadata.unassigned}\n"
-            f"Processing time: {response.metadata.processing_time_ms}ms"
-        )
-        
-        return response
-        
-    except Exception as e:
-        logger.error(
-            f"Error in quick categorization endpoint: {str(e)}", 
-            exc_info=True,
-            extra={
-                "user_id": current_user.user_id,
-                "request_params": request.model_dump()
-            }
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to analyze entries for categorization"
-        )
 
