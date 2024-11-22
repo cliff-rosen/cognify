@@ -7,7 +7,7 @@ from fastapi import HTTPException, status
 from models import Topic, Entry
 from schemas import (
     ProposedTopic, ProposedEntry, TopicSuggestion, 
-    TopicAssignment, NewTopicProposal
+    TopicAssignment, NewTopicProposal, CategorySuggestion
 )
 
 logger = logging.getLogger(__name__)
@@ -435,7 +435,7 @@ async def analyze_entries_for_categorization(
     min_confidence: float,
     max_new_topics: int,
     instructions: Optional[str]
-) -> Dict[Entry, List[TopicSuggestion]]:
+) -> Dict[Entry, List[CategorySuggestion]]:
     """Analyze entries and suggest categorizations"""
     
     try:
@@ -492,7 +492,7 @@ Return a JSON object with this structure:
         raw_suggestions = json.loads(message.content[0].text)
         
         # Process suggestions into required format
-        processed_suggestions: Dict[Entry, List[TopicSuggestion]] = {}
+        processed_suggestions: Dict[Entry, List[CategorySuggestion]] = {}
         
         for entry_data in raw_suggestions["entries"]:
             entry_index = entry_data["entry_index"] - 1  # Convert to 0-based index
@@ -513,10 +513,11 @@ Return a JSON object with this structure:
                             topic_name = topic.topic_name  # Use exact name from DB
                             break
                 
-                entry_suggestions.append(TopicSuggestion(
+                entry_suggestions.append(CategorySuggestion(
                     topic_id=topic_id,
                     topic_name=topic_name,
-                    confidence=confidence
+                    is_new=is_new,
+                    confidence_score=confidence
                 ))
             
             processed_suggestions[entry] = entry_suggestions

@@ -1,5 +1,5 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react'
-import { Topic, UNCATEGORIZED_TOPIC_ID, isUncategorizedTopic } from '../../lib/api/topicsApi'
+import { Topic, UNCATEGORIZED_TOPIC_ID, isUncategorizedTopic, QuickCategorizeUncategorizedResponse, TopicAssignment, ExistingTopicAssignment, NewTopicProposal } from '../../lib/api/topicsApi'
 import { entriesApi, Entry } from '../../lib/api/entriesApi'
 import { topicsApi, QuickCategorizeProposal } from '../../lib/api/topicsApi'
 import { DragEvent } from 'react'
@@ -36,7 +36,8 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
         const [_isLoadingTopics, setIsLoadingTopics] = useState(false)
         const [selectedEntries, setSelectedEntries] = useState<Set<number>>(new Set())
         const [isQuickMode, setIsQuickMode] = useState(false)
-        const [categorySuggestions, setCategorySuggestions] = useState<Record<number, QuickCategorizeProposal>>({});
+        const [categorySuggestions, setCategorySuggestions] = useState<QuickCategorizeUncategorizedResponse | null>(null);
+        const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
 
         const fetchEntries = async () => {
             try {
@@ -166,16 +167,11 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
         const handleProposeCategorization = async () => {
             setIsInPlaceCategorizing(true);
             try {
-                const selectedIds = Array.from(selectedEntries);
-                const response = await topicsApi.getQuickCategorization(selectedIds);
-
-                // Convert array to record for easier lookup
-                const suggestionsMap = response.proposals.reduce((acc, proposal) => {
-                    acc[proposal.entry_id] = proposal;
-                    return acc;
-                }, {} as Record<number, QuickCategorizeProposal>);
-
-                setCategorySuggestions(suggestionsMap);
+                const response = await topicsApi.quickCategorizeUncategorized({
+                    min_confidence_threshold: 0.7,
+                    max_new_topics: 3
+                });
+                setCategorySuggestions(response);
             } catch (error) {
                 console.error('Error proposing categories:', error);
             } finally {
@@ -183,26 +179,54 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
             }
         };
 
-        const handleAcceptSuggestion = async (entryId: number, suggestion: CategorySuggestion) => {
+        const handleAcceptSuggestion = async (
+            entryId: number, 
+            topicId: number | null, 
+            topicName: string, 
+            isNew: boolean
+        ) => {
             try {
-                if (suggestion.is_new) {
+                if (isNew) {
                     // First create the new topic
                     const newTopic = await topicsApi.createTopic({
-                        topic_name: suggestion.topic_name
+                        topic_name: topicName
                     });
                     // Then move the entry to it
                     await entriesApi.moveEntryToTopic(entryId, newTopic.topic_id);
-                } else if (suggestion.topic_id) {
+                } else if (topicId) {
                     // Move entry to existing topic
-                    await entriesApi.moveEntryToTopic(entryId, suggestion.topic_id);
+                    await entriesApi.moveEntryToTopic(entryId, topicId);
                 }
 
-                // Remove the suggestion from the UI
-                setCategorySuggestions(prev => {
-                    const newSuggestions = { ...prev };
-                    delete newSuggestions[entryId];
-                    return newSuggestions;
-                });
+                // Remove the entry from suggestions
+                if (categorySuggestions) {
+                    setCategorySuggestions(prev => {
+                        if (!prev) return null;
+                        
+                        // Create new state removing the processed entry
+                        const newState = {
+                            ...prev,
+                            existing_topic_assignments: prev.existing_topic_assignments.map(topic => ({
+                                ...topic,
+                                entries: topic.entries.filter(e => e.entry_id !== entryId)
+                            })).filter(topic => topic.entries.length > 0),
+                            new_topic_proposals: prev.new_topic_proposals.map(topic => ({
+                                ...topic,
+                                entries: topic.entries.filter(e => e.entry_id !== entryId)
+                            })).filter(topic => topic.entries.length > 0)
+                        };
+
+                        // Update metadata
+                        newState.metadata = {
+                            ...prev.metadata,
+                            total_entries_analyzed: prev.metadata.total_entries_analyzed - 1,
+                            assigned_to_existing: isNew ? prev.metadata.assigned_to_existing : prev.metadata.assigned_to_existing - 1,
+                            assigned_to_new: isNew ? prev.metadata.assigned_to_new - 1 : prev.metadata.assigned_to_new
+                        };
+
+                        return newState;
+                    });
+                }
 
                 // Remove from selected entries
                 setSelectedEntries(prev => {
@@ -211,52 +235,136 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                     return newSet;
                 });
 
-                // Refresh entries
+                // Refresh entries and UI
                 await fetchEntries();
+                if (onEntriesMoved) onEntriesMoved();
+                if (onTopicsChanged) onTopicsChanged();
 
-                // Trigger both callbacks to refresh the UI
-                if (onEntriesMoved) {
-                    onEntriesMoved();
-                }
-                if (onTopicsChanged) {
-                    onTopicsChanged();  // This will refresh the left sidebar
-                }
-
-                // If no more suggestions and no more selected entries, exit quick mode
-                const remainingSuggestions = Object.keys(categorySuggestions).length - 1; // -1 for the one we just removed
-                if (remainingSuggestions === 0 && selectedEntries.size <= 1) { // <= 1 because we haven't removed the current one yet
+                // Exit quick mode if no more suggestions
+                if (!categorySuggestions || (
+                    categorySuggestions.existing_topic_assignments.length === 0 &&
+                    categorySuggestions.new_topic_proposals.length === 0 &&
+                    categorySuggestions.unassigned_entries.length === 0
+                )) {
                     setIsQuickMode(false);
                 }
-
             } catch (error) {
                 console.error('Error accepting suggestion:', error);
             }
         };
 
-        const handleRejectSuggestion = (entryId: number, suggestion: CategorySuggestion) => {
-            // Remove this suggestion from the entry's suggestions list
+        const handleRejectSuggestion = (
+            entryId: number, 
+            topicId: number | null,
+            topicName: string,
+            isNew: boolean
+        ) => {
             setCategorySuggestions(prev => {
-                const entry = prev[entryId];
-                if (!entry) return prev;
-
-                const newSuggestions = {
+                if (!prev) return null;
+                
+                // Create new state removing the entry from the appropriate section
+                return {
                     ...prev,
-                    [entryId]: {
-                        ...entry,
-                        suggestions: entry.suggestions.filter(s =>
-                            s.topic_name !== suggestion.topic_name ||
-                            s.topic_id !== suggestion.topic_id
-                        )
-                    }
+                    existing_topic_assignments: isNew ? prev.existing_topic_assignments : 
+                        prev.existing_topic_assignments.map(topic => {
+                            if (topic.topic_id === topicId) {
+                                return {
+                                    ...topic,
+                                    entries: topic.entries.filter(e => e.entry_id !== entryId)
+                                };
+                            }
+                            return topic;
+                        }).filter(topic => topic.entries.length > 0),
+                    new_topic_proposals: !isNew ? prev.new_topic_proposals :
+                        prev.new_topic_proposals.map(topic => {
+                            if (topic.suggested_name === topicName) {
+                                return {
+                                    ...topic,
+                                    entries: topic.entries.filter(e => e.entry_id !== entryId)
+                                };
+                            }
+                            return topic;
+                        }).filter(topic => topic.entries.length > 0),
+                    // Move the entry to unassigned
+                    unassigned_entries: [
+                        ...prev.unassigned_entries,
+                        {
+                            entry_id: entryId,
+                            content: entries.find(e => e.entry_id === entryId)?.content || "",
+                            reason: "Rejected suggestion",
+                            top_suggestions: []
+                        }
+                    ]
                 };
+            });
+        };
 
-                // If no suggestions left, remove the entry from suggestions
-                if (newSuggestions[entryId].suggestions.length === 0) {
-                    delete newSuggestions[entryId];
+        const handleAcceptAllSuggestions = async () => {
+            if (!categorySuggestions) return;
+
+            setIsInPlaceCategorizing(true);
+            try {
+                // Get all entries and their best suggestions
+                const entrySuggestions = new Map<number, {
+                    topicId: number | null;
+                    topicName: string;
+                    isNew: boolean;
+                    confidence: number;
+                }>();
+
+                // Process existing topic assignments
+                for (const topic of categorySuggestions.existing_topic_assignments) {
+                    for (const entry of topic.entries) {
+                        const currentBest = entrySuggestions.get(entry.entry_id);
+                        if (!currentBest || entry.confidence > currentBest.confidence) {
+                            entrySuggestions.set(entry.entry_id, {
+                                topicId: topic.topic_id,
+                                topicName: topic.topic_name,
+                                isNew: false,
+                                confidence: entry.confidence
+                            });
+                        }
+                    }
                 }
 
-                return newSuggestions;
-            });
+                // Process new topic proposals
+                for (const topic of categorySuggestions.new_topic_proposals) {
+                    for (const entry of topic.entries) {
+                        const currentBest = entrySuggestions.get(entry.entry_id);
+                        if (!currentBest || entry.confidence > currentBest.confidence) {
+                            entrySuggestions.set(entry.entry_id, {
+                                topicId: null,
+                                topicName: topic.suggested_name,
+                                isNew: true,
+                                confidence: entry.confidence
+                            });
+                        }
+                    }
+                }
+
+                // Apply the best suggestions
+                for (const [entryId, suggestion] of entrySuggestions) {
+                    await handleAcceptSuggestion(
+                        entryId,
+                        suggestion.topicId,
+                        suggestion.topicName,
+                        suggestion.isNew
+                    );
+                }
+
+                // Clear suggestions and exit quick mode
+                setCategorySuggestions(null);
+                setIsQuickMode(false);
+            } catch (error) {
+                console.error('Error accepting all suggestions:', error);
+            } finally {
+                setIsInPlaceCategorizing(false);
+            }
+        };
+
+        const handleClearSuggestions = () => {
+            setCategorySuggestions(null);
+            setSelectedEntries(new Set());
         };
 
         if (isLoading) {
@@ -386,7 +494,7 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                                                             </span>
 
                                                             {/* Show suggestions if available */}
-                                                            {categorySuggestions[entry.entry_id] && (
+                                                            {categorySuggestions && (
                                                                 <div className="mt-3 space-y-2 border-t border-gray-100 dark:border-gray-700 pt-3">
                                                                     <div className="text-sm font-medium text-gray-600 dark:text-gray-300 flex items-center gap-2">
                                                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -395,64 +503,144 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                                                                         </svg>
                                                                         <span>Suggested Categories</span>
                                                                     </div>
-                                                                    <div className="flex flex-wrap gap-2">
-                                                                        {categorySuggestions[entry.entry_id].suggestions.map((suggestion, idx) => (
-                                                                            <div
-                                                                                key={idx}
-                                                                                className="group flex items-center gap-1 px-3 py-1.5 
-                                                                                         bg-gray-50 dark:bg-gray-700/50 
-                                                                                         border border-gray-200 dark:border-gray-600
-                                                                                         rounded-md hover:shadow-sm transition-all"
-                                                                            >
-                                                                                <div className="flex flex-col">
-                                                                                    <span className="text-sm font-medium">
-                                                                                        {suggestion.topic_name}
-                                                                                        {suggestion.is_new && (
-                                                                                            <span className="ml-1.5 text-xs text-green-500 bg-green-50 
-                                                                                                   dark:bg-green-900/20 px-1.5 py-0.5 rounded">
-                                                                                                new
+
+                                                                    {/* Existing Topic Suggestions */}
+                                                                    {categorySuggestions.existing_topic_assignments
+                                                                        .filter(topic => topic.entries.some(e => e.entry_id === entry.entry_id))
+                                                                        .map(topic => (
+                                                                            topic.entries
+                                                                                .filter(e => e.entry_id === entry.entry_id)
+                                                                                .map(entryAssignment => (
+                                                                                    <div key={`${topic.topic_id}-${entryAssignment.entry_id}`} 
+                                                                                         className="group flex items-center gap-1 px-3 py-1.5 
+                                                                                                  bg-gray-50 dark:bg-gray-700/50 
+                                                                                                  border border-gray-200 dark:border-gray-600
+                                                                                                  rounded-md hover:shadow-sm transition-all"
+                                                                                    >
+                                                                                        <div className="flex flex-col flex-1">
+                                                                                            <span className="text-sm font-medium">
+                                                                                                {topic.topic_name}
                                                                                             </span>
-                                                                                        )}
-                                                                                    </span>
-                                                                                    <div className="flex items-center gap-1 mt-0.5">
-                                                                                        <div className="h-1 w-16 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
-                                                                                            <div
-                                                                                                className="h-full bg-blue-500 rounded-full"
-                                                                                                style={{ width: `${suggestion.confidence_score * 100}%` }}
-                                                                                            />
+                                                                                            <div className="flex items-center gap-1 mt-0.5">
+                                                                                                <div className="h-1 w-16 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
+                                                                                                    <div
+                                                                                                        className="h-full bg-blue-500 rounded-full"
+                                                                                                        style={{ width: `${entryAssignment.confidence * 100}%` }}
+                                                                                                    />
+                                                                                                </div>
+                                                                                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                                                                                    {Math.round(entryAssignment.confidence * 100)}%
+                                                                                                </span>
+                                                                                            </div>
                                                                                         </div>
-                                                                                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                                                                                            {Math.round(suggestion.confidence_score * 100)}%
-                                                                                        </span>
+                                                                                        <div className="flex gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                                            <button
+                                                                                                onClick={() => handleAcceptSuggestion(
+                                                                                                    entry.entry_id,
+                                                                                                    topic.topic_id,
+                                                                                                    topic.topic_name,
+                                                                                                    false
+                                                                                                )}
+                                                                                                className="p-1 text-green-600 hover:text-green-700 
+                                                                                                         dark:text-green-500 dark:hover:text-green-400
+                                                                                                         hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
+                                                                                                title="Accept"
+                                                                                            >
+                                                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                                                                </svg>
+                                                                                            </button>
+                                                                                            <button
+                                                                                                onClick={() => handleRejectSuggestion(
+                                                                                                    entry.entry_id,
+                                                                                                    topic.topic_id,
+                                                                                                    topic.topic_name,
+                                                                                                    false
+                                                                                                )}
+                                                                                                className="p-1 text-red-600 hover:text-red-700
+                                                                                                         dark:text-red-500 dark:hover:text-red-400
+                                                                                                         hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                                                                                                title="Reject"
+                                                                                            >
+                                                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                                                                </svg>
+                                                                                            </button>
+                                                                                        </div>
                                                                                     </div>
-                                                                                </div>
-                                                                                <div className="flex gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                                    <button
-                                                                                        onClick={() => handleAcceptSuggestion(entry.entry_id, suggestion)}
-                                                                                        className="p-1 text-green-600 hover:text-green-700 
-                                                                                                 dark:text-green-500 dark:hover:text-green-400
-                                                                                                 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
-                                                                                        title="Accept"
-                                                                                    >
-                                                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                                                        </svg>
-                                                                                    </button>
-                                                                                    <button
-                                                                                        onClick={() => handleRejectSuggestion(entry.entry_id, suggestion)}
-                                                                                        className="p-1 text-red-600 hover:text-red-700
-                                                                                                 dark:text-red-500 dark:hover:text-red-400
-                                                                                                 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
-                                                                                        title="Reject"
-                                                                                    >
-                                                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                                                        </svg>
-                                                                                    </button>
-                                                                                </div>
-                                                                            </div>
+                                                                                ))
                                                                         ))}
-                                                                    </div>
+
+                                                                    {/* New Topic Suggestions */}
+                                                                    {categorySuggestions.new_topic_proposals
+                                                                        .filter(topic => topic.entries.some(e => e.entry_id === entry.entry_id))
+                                                                        .map(topic => (
+                                                                            topic.entries
+                                                                                .filter(e => e.entry_id === entry.entry_id)
+                                                                                .map(entryAssignment => (
+                                                                                    <div key={`new-${topic.suggested_name}-${entryAssignment.entry_id}`}
+                                                                                         className="group flex items-center gap-1 px-3 py-1.5 
+                                                                                                  bg-gray-50 dark:bg-gray-700/50 
+                                                                                                  border border-gray-200 dark:border-gray-600
+                                                                                                  rounded-md hover:shadow-sm transition-all"
+                                                                                    >
+                                                                                        <div className="flex flex-col flex-1">
+                                                                                            <span className="text-sm font-medium">
+                                                                                                {topic.suggested_name}
+                                                                                                <span className="ml-1.5 text-xs text-green-500 bg-green-50 
+                                                                                                       dark:bg-green-900/20 px-1.5 py-0.5 rounded">
+                                                                                                    new
+                                                                                                </span>
+                                                                                            </span>
+                                                                                            <div className="flex items-center gap-1 mt-0.5">
+                                                                                                <div className="h-1 w-16 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
+                                                                                                    <div
+                                                                                                        className="h-full bg-blue-500 rounded-full"
+                                                                                                        style={{ width: `${entryAssignment.confidence * 100}%` }}
+                                                                                                    />
+                                                                                                </div>
+                                                                                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                                                                                    {Math.round(entryAssignment.confidence * 100)}%
+                                                                                                </span>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                        <div className="flex gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                                            <button
+                                                                                                onClick={() => handleAcceptSuggestion(
+                                                                                                    entry.entry_id,
+                                                                                                    null,
+                                                                                                    topic.suggested_name,
+                                                                                                    true
+                                                                                                )}
+                                                                                                className="p-1 text-green-600 hover:text-green-700 
+                                                                                                         dark:text-green-500 dark:hover:text-green-400
+                                                                                                         hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
+                                                                                                title="Accept"
+                                                                                            >
+                                                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                                                                </svg>
+                                                                                            </button>
+                                                                                            <button
+                                                                                                onClick={() => handleRejectSuggestion(
+                                                                                                    entry.entry_id,
+                                                                                                    null,
+                                                                                                    topic.suggested_name,
+                                                                                                    true
+                                                                                                )}
+                                                                                                className="p-1 text-red-600 hover:text-red-700
+                                                                                                         dark:text-red-500 dark:hover:text-red-400
+                                                                                                         hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                                                                                                title="Reject"
+                                                                                            >
+                                                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                                                                </svg>
+                                                                                            </button>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                ))
+                                                                        ))}
                                                                 </div>
                                                             )}
                                                         </div>
@@ -460,33 +648,69 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                                                 ))}
                                             </div>
                                             <div className="sticky bottom-0 bg-white dark:bg-gray-800 p-4 border-t 
-                                                          border-gray-200 dark:border-gray-700 mt-4 flex justify-end gap-3">
-                                                <button
-                                                    onClick={() => setIsQuickMode(false)}
-                                                    className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 
-                                                             dark:hover:text-gray-200 border border-gray-300 dark:border-gray-600 
-                                                             rounded-md transition-colors duration-150"
-                                                >
-                                                    Cancel
-                                                </button>
-                                                <button
-                                                    onClick={handleProposeCategorization}
-                                                    disabled={selectedEntries.size === 0 || isInPlaceCategorizing}
-                                                    className="px-4 py-2 bg-blue-500 text-white rounded-md 
-                                                             hover:bg-blue-600 disabled:bg-gray-400 
-                                                             disabled:cursor-not-allowed flex items-center gap-2"
-                                                >
-                                                    {isInPlaceCategorizing ? (
-                                                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                                                            <circle className="opacity-25" cx="12" cy="12" r="10"
-                                                                stroke="currentColor" strokeWidth="4" fill="none" />
-                                                            <path className="opacity-75" fill="currentColor"
-                                                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                                                        </svg>
-                                                    ) : null}
-                                                    Propose Categories for Selected Entries
-                                                    ({selectedEntries.size})
-                                                </button>
+                                                          border-gray-200 dark:border-gray-700 mt-4 flex justify-between gap-3">
+                                                <div className="flex gap-3">
+                                                    {categorySuggestions && (
+                                                        <>
+                                                            <button
+                                                                onClick={handleAcceptAllSuggestions}
+                                                                disabled={isInPlaceCategorizing}
+                                                                className="px-4 py-2 bg-green-500 text-white rounded-md 
+                                                                         hover:bg-green-600 disabled:bg-gray-400 
+                                                                         disabled:cursor-not-allowed flex items-center gap-2"
+                                                            >
+                                                                {isInPlaceCategorizing ? (
+                                                                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                                                                        <circle className="opacity-25" cx="12" cy="12" r="10"
+                                                                            stroke="currentColor" strokeWidth="4" fill="none" />
+                                                                        <path className="opacity-75" fill="currentColor"
+                                                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                                                    </svg>
+                                                                ) : null}
+                                                                Accept All
+                                                            </button>
+                                                            <button
+                                                                onClick={handleClearSuggestions}
+                                                                disabled={isInPlaceCategorizing}
+                                                                className="px-4 py-2 text-gray-600 dark:text-gray-400 
+                                                                         hover:text-gray-800 dark:hover:text-gray-200 
+                                                                         border border-gray-300 dark:border-gray-600 
+                                                                         rounded-md transition-colors duration-150
+                                                                         disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            >
+                                                                Clear
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                                <div className="flex gap-3">
+                                                    <button
+                                                        onClick={() => setIsQuickMode(false)}
+                                                        className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 
+                                                                 dark:hover:text-gray-200 border border-gray-300 dark:border-gray-600 
+                                                                 rounded-md transition-colors duration-150"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                    <button
+                                                        onClick={handleProposeCategorization}
+                                                        disabled={selectedEntries.size === 0 || isInPlaceCategorizing}
+                                                        className="px-4 py-2 bg-blue-500 text-white rounded-md 
+                                                                 hover:bg-blue-600 disabled:bg-gray-400 
+                                                                 disabled:cursor-not-allowed flex items-center gap-2"
+                                                    >
+                                                        {isInPlaceCategorizing ? (
+                                                            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                                                                <circle className="opacity-25" cx="12" cy="12" r="10"
+                                                                    stroke="currentColor" strokeWidth="4" fill="none" />
+                                                                <path className="opacity-75" fill="currentColor"
+                                                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                                            </svg>
+                                                        ) : null}
+                                                        Propose Categories for Selected Entries
+                                                        ({selectedEntries.size})
+                                                    </button>
+                                                </div>
                                             </div>
                                         </>
                                     )}

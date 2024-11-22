@@ -604,7 +604,8 @@ async def quick_categorize_uncategorized(
             max_new_topics=max_new_topics,
             instructions=instructions
         )
-        
+        logger.info(f"AI suggestions: {suggestions}")
+
         # Process suggestions into response format
         existing_assignments = defaultdict(list)
         new_topics = []
@@ -612,9 +613,9 @@ async def quick_categorize_uncategorized(
         all_confidences = []
         
         for entry, entry_suggestions in suggestions.items():
-            best_match = max(entry_suggestions, key=lambda x: x.confidence)
+            best_match = max(entry_suggestions, key=lambda x: x.confidence_score)
             
-            if best_match.confidence < min_confidence:
+            if best_match.confidence_score < min_confidence:
                 # Entry doesn't meet confidence threshold
                 unassigned.append(UnassignedEntry(
                     entry_id=entry.entry_id,
@@ -624,7 +625,7 @@ async def quick_categorize_uncategorized(
                         TopicSuggestion(
                             topic_id=s.topic_id,
                             topic_name=s.topic_name,
-                            confidence=s.confidence
+                            confidence=s.confidence_score
                         ) for s in entry_suggestions[:3]
                     ]
                 ))
@@ -635,12 +636,12 @@ async def quick_categorize_uncategorized(
                     TopicAssignment(
                         entry_id=entry.entry_id,
                         content=entry.content,
-                        confidence=best_match.confidence,
+                        confidence=best_match.confidence_score,
                         alternative_topics=[
                             TopicSuggestion(
                                 topic_id=s.topic_id,
                                 topic_name=s.topic_name,
-                                confidence=s.confidence
+                                confidence=s.confidence_score
                             ) for s in entry_suggestions[1:3]  # Next 2 best matches
                         ]
                     )
@@ -648,13 +649,13 @@ async def quick_categorize_uncategorized(
             else:  # New topic
                 # Find or create new topic proposal
                 new_topic = next(
-                    (t for t in new_topics if t.topic_name == best_match.topic_name),
+                    (t for t in new_topics if t.suggested_name == best_match.topic_name),
                     None
                 )
                 if not new_topic:
                     new_topic = NewTopicProposal(
                         suggested_name=best_match.topic_name,
-                        confidence=best_match.confidence,
+                        confidence=best_match.confidence_score,
                         rationale="Multiple related entries found",
                         similar_existing_topics=[],
                         entries=[]
@@ -666,12 +667,12 @@ async def quick_categorize_uncategorized(
                     TopicAssignment(
                         entry_id=entry.entry_id,
                         content=entry.content,
-                        confidence=best_match.confidence,
+                        confidence=best_match.confidence_score,
                         alternative_topics=[
                             TopicSuggestion(
                                 topic_id=s.topic_id,
                                 topic_name=s.topic_name,
-                                confidence=s.confidence
+                                confidence=s.confidence_score
                             ) for s in entry_suggestions[1:3]
                         ]
                     )
@@ -680,7 +681,7 @@ async def quick_categorize_uncategorized(
                 # Update topic confidence based on all its entries
                 new_topic.confidence = mean(e.confidence for e in new_topic.entries)
             
-            all_confidences.append(best_match.confidence)
+            all_confidences.append(best_match.confidence_score)
         
         # Format response
         response = QuickCategorizeUncategorizedResponse(
@@ -688,25 +689,16 @@ async def quick_categorize_uncategorized(
                 ExistingTopicAssignment(
                     topic_id=topic_id,
                     topic_name=next(t.topic_name for t in existing_topics if t.topic_id == topic_id),
-                    entries=entries  # entries is already a list of TopicAssignment objects
+                    entries=entries
                 )
                 for topic_id, entries in existing_assignments.items()
             ],
-            new_topic_proposals=[
-                NewTopicProposal(
-                    suggested_name=topic.topic_name,
-                    confidence=topic.confidence,
-                    rationale=topic.rationale if hasattr(topic, 'rationale') else "Multiple related entries found",
-                    similar_existing_topics=topic.similar_existing_topics if hasattr(topic, 'similar_existing_topics') else [],
-                    entries=topic.entries if hasattr(topic, 'entries') else []
-                )
-                for topic in new_topics
-            ],
+            new_topic_proposals=new_topics,
             unassigned_entries=unassigned,
             metadata=CategoryMetadata(
                 total_entries_analyzed=len(uncategorized_entries),
-                assigned_to_existing=sum(len(entries) for entries in existing_assignments.values()),  # Fixed this line
-                assigned_to_new=len(new_topics),  # Changed this to count new topics
+                assigned_to_existing=sum(len(entries) for entries in existing_assignments.values()),
+                assigned_to_new=sum(len(t.entries) for t in new_topics),
                 unassigned=len(unassigned),
                 average_confidence=mean(all_confidences) if all_confidences else 0.0,
                 processing_time_ms=int((time.time() - start_time) * 1000)
