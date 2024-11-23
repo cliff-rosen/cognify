@@ -433,6 +433,30 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
             setSelectedEntries(new Set());
         };
 
+        const handleEditEntry = async (entryId: number, newContent: string) => {
+            try {
+                // Find the current entry to get its topic_id
+                const currentEntry = entries.find(e => e.entry_id === entryId);
+                if (!currentEntry) return;
+
+                // Update entry while preserving its topic_id
+                await entriesApi.updateEntry(entryId, { 
+                    content: newContent,
+                    topic_id: currentEntry.topic_id  // Explicitly include the current topic_id
+                });
+
+                // Update local state
+                setEntries(entries.map(e => 
+                    e.entry_id === entryId 
+                        ? { ...e, content: newContent }  // Keep all other properties, just update content
+                        : e
+                ));
+            } catch (err) {
+                console.error('Error updating entry:', err);
+                // TODO: Show error notification
+            }
+        };
+
         if (isLoading) {
             return (
                 <div className="h-full w-full flex items-center justify-center">
@@ -527,6 +551,7 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                                     onDragStart={handleDragStart}
                                     onDragEnd={handleDragEnd}
                                     onDelete={(entry: Entry) => setEntryToDelete(entry)}
+                                    onEdit={handleEditEntry}
                                     emptyMessage="No uncategorized entries"
                                 />
                             )}
@@ -586,6 +611,7 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                                     onDragStart={handleDragStart}
                                     onDragEnd={handleDragEnd}
                                     onDelete={(entry: Entry) => setEntryToDelete(entry)}
+                                    onEdit={handleEditEntry}
                                     emptyMessage="No entries in this topic"
                                 />
                             )}
