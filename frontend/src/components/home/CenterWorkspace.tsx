@@ -37,7 +37,7 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
         const [selectedEntries, setSelectedEntries] = useState<Set<number>>(new Set())
         const [isQuickMode, setIsQuickMode] = useState(false)
         const [categorySuggestions, setCategorySuggestions] = useState<QuickCategorizeUncategorizedResponse | null>(null);
-        const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+
 
         const fetchEntries = async () => {
             try {
@@ -180,48 +180,64 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
         };
 
         const handleAcceptSuggestion = async (
-            entryId: number, 
-            topicId: number | null, 
-            topicName: string, 
+            entryId: number,
+            topicId: number | null,
+            topicName: string,
             isNew: boolean
         ) => {
             try {
+                let targetTopicId: number;
+
                 if (isNew) {
-                    // First create the new topic
-                    const newTopic = await topicsApi.createTopic({
-                        topic_name: topicName
-                    });
-                    // Then move the entry to it
-                    await entriesApi.moveEntryToTopic(entryId, newTopic.topic_id);
-                } else if (topicId) {
-                    // Move entry to existing topic
-                    await entriesApi.moveEntryToTopic(entryId, topicId);
+                    // Check if we already have a topic with this name (case insensitive)
+                    const existingTopics = await topicsApi.getTopics();
+                    const existingTopic = existingTopics.find(
+                        t => t.topic_name.toLowerCase() === topicName.toLowerCase()
+                    );
+
+                    if (existingTopic) {
+                        targetTopicId = existingTopic.topic_id;
+                    } else {
+                        // Create new topic if it doesn't exist
+                        const newTopic = await topicsApi.createTopic({
+                            topic_name: topicName
+                        });
+                        targetTopicId = newTopic.topic_id;
+                    }
+                } else {
+                    targetTopicId = topicId!;
                 }
 
-                // Remove the entry from suggestions
+                // Move entry to target topic
+                await entriesApi.moveEntryToTopic(entryId, targetTopicId);
+
+                // Update UI state
                 if (categorySuggestions) {
                     setCategorySuggestions(prev => {
                         if (!prev) return null;
-                        
+
                         // Create new state removing the processed entry
                         const newState = {
                             ...prev,
-                            existing_topic_assignments: prev.existing_topic_assignments.map(topic => ({
-                                ...topic,
-                                entries: topic.entries.filter(e => e.entry_id !== entryId)
-                            })).filter(topic => topic.entries.length > 0),
-                            new_topic_proposals: prev.new_topic_proposals.map(topic => ({
-                                ...topic,
-                                entries: topic.entries.filter(e => e.entry_id !== entryId)
-                            })).filter(topic => topic.entries.length > 0)
-                        };
-
-                        // Update metadata
-                        newState.metadata = {
-                            ...prev.metadata,
-                            total_entries_analyzed: prev.metadata.total_entries_analyzed - 1,
-                            assigned_to_existing: isNew ? prev.metadata.assigned_to_existing : prev.metadata.assigned_to_existing - 1,
-                            assigned_to_new: isNew ? prev.metadata.assigned_to_new - 1 : prev.metadata.assigned_to_new
+                            existing_topic_assignments: prev.existing_topic_assignments
+                                .map(topic => ({
+                                    ...topic,
+                                    entries: topic.entries.filter(e => e.entry_id !== entryId)
+                                }))
+                                .filter(topic => topic.entries.length > 0),
+                            new_topic_proposals: prev.new_topic_proposals
+                                .map(topic => ({
+                                    ...topic,
+                                    entries: topic.entries.filter(e => e.entry_id !== entryId)
+                                }))
+                                .filter(topic => topic.entries.length > 0),
+                            metadata: {
+                                ...prev.metadata,
+                                total_entries_analyzed: prev.metadata.total_entries_analyzed - 1,
+                                assigned_to_existing: prev.metadata.assigned_to_existing - (isNew ? 0 : 1),
+                                assigned_to_new: prev.metadata.assigned_to_new - (isNew ? 1 : 0),
+                                unassigned: prev.metadata.unassigned
+                            }
                         };
 
                         return newState;
@@ -248,24 +264,25 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                 )) {
                     setIsQuickMode(false);
                 }
+
             } catch (error) {
                 console.error('Error accepting suggestion:', error);
             }
         };
 
         const handleRejectSuggestion = (
-            entryId: number, 
+            entryId: number,
             topicId: number | null,
             topicName: string,
             isNew: boolean
         ) => {
             setCategorySuggestions(prev => {
                 if (!prev) return null;
-                
+
                 // Create new state removing the entry from the appropriate section
                 return {
                     ...prev,
-                    existing_topic_assignments: isNew ? prev.existing_topic_assignments : 
+                    existing_topic_assignments: isNew ? prev.existing_topic_assignments :
                         prev.existing_topic_assignments.map(topic => {
                             if (topic.topic_id === topicId) {
                                 return {
@@ -304,63 +321,104 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
 
             setIsInPlaceCategorizing(true);
             try {
-                // Get all entries and their best suggestions
-                const entrySuggestions = new Map<number, {
-                    topicId: number | null;
-                    topicName: string;
+                // First, get all existing topics to check for name matches
+                const existingTopics = await topicsApi.getTopics();
+                const createdTopics = new Map<string, number>();  // Map from topic name to topic ID
+
+                // Pre-populate createdTopics with any existing topics that match new topic names
+                for (const topic of existingTopics) {
+                    createdTopics.set(topic.topic_name.toLowerCase(), topic.topic_id);
+                }
+
+                // Group entries by their best suggestion
+                const entriesByTopic = new Map<string, {
                     isNew: boolean;
-                    confidence: number;
+                    topicId: number | null;  // Added topicId field
+                    topicName: string;
+                    entries: Array<{
+                        entryId: number;
+                        confidence: number;
+                    }>;
                 }>();
 
-                // Process existing topic assignments (only for selected entries)
+                // Process existing topic assignments
                 for (const topic of categorySuggestions.existing_topic_assignments) {
                     for (const entry of topic.entries) {
-                        if (!selectedEntries.has(entry.entry_id)) continue;  // Skip if not selected
-                        
-                        const currentBest = entrySuggestions.get(entry.entry_id);
-                        if (!currentBest || entry.confidence > currentBest.confidence) {
-                            entrySuggestions.set(entry.entry_id, {
-                                topicId: topic.topic_id,
-                                topicName: topic.topic_name,
-                                isNew: false,
-                                confidence: entry.confidence
-                            });
-                        }
+                        if (!selectedEntries.has(entry.entry_id)) continue;
+
+                        const key = `existing-${topic.topic_id}`;
+                        const group = entriesByTopic.get(key) || {
+                            isNew: false,
+                            topicId: topic.topic_id,  // Store the actual topic ID
+                            topicName: topic.topic_name,
+                            entries: []
+                        };
+                        group.entries.push({
+                            entryId: entry.entry_id,
+                            confidence: entry.confidence
+                        });
+                        entriesByTopic.set(key, group);
                     }
                 }
 
-                // Process new topic proposals (only for selected entries)
+                // Process new topic proposals
                 for (const topic of categorySuggestions.new_topic_proposals) {
                     for (const entry of topic.entries) {
-                        if (!selectedEntries.has(entry.entry_id)) continue;  // Skip if not selected
-                        
-                        const currentBest = entrySuggestions.get(entry.entry_id);
-                        if (!currentBest || entry.confidence > currentBest.confidence) {
-                            entrySuggestions.set(entry.entry_id, {
-                                topicId: null,
-                                topicName: topic.suggested_name,
-                                isNew: true,
-                                confidence: entry.confidence
-                            });
-                        }
+                        if (!selectedEntries.has(entry.entry_id)) continue;
+
+                        const key = `new-${topic.suggested_name.toLowerCase()}`;
+                        const group = entriesByTopic.get(key) || {
+                            isNew: true,
+                            topicId: null,
+                            topicName: topic.suggested_name,
+                            entries: []
+                        };
+                        group.entries.push({
+                            entryId: entry.entry_id,
+                            confidence: entry.confidence
+                        });
+                        entriesByTopic.set(key, group);
                     }
                 }
 
-                // Apply the best suggestions
-                for (const [entryId, suggestion] of entrySuggestions) {
-                    await handleAcceptSuggestion(
-                        entryId,
-                        suggestion.topicId,
-                        suggestion.topicName,
-                        suggestion.isNew
-                    );
+                // Process each topic group
+                for (const [_, group] of entriesByTopic) {
+                    let targetTopicId: number;
+
+                    if (group.isNew) {
+                        // Check if we already have this topic (case insensitive)
+                        const existingId = createdTopics.get(group.topicName.toLowerCase());
+                        if (existingId) {
+                            targetTopicId = existingId;
+                        } else {
+                            // Create new topic
+                            const newTopic = await topicsApi.createTopic({
+                                topic_name: group.topicName
+                            });
+                            targetTopicId = newTopic.topic_id;
+                            createdTopics.set(group.topicName.toLowerCase(), newTopic.topic_id);
+                        }
+                    } else {
+                        // Use the stored topic ID directly
+                        targetTopicId = group.topicId!;
+                    }
+
+                    // Move all entries to the topic
+                    for (const entry of group.entries) {
+                        await entriesApi.moveEntryToTopic(entry.entryId, targetTopicId);
+                    }
                 }
 
-                // Clear suggestions and exit quick mode if no more entries to process
-                if (entrySuggestions.size === selectedEntries.size) {
-                    setCategorySuggestions(null);
-                    setIsQuickMode(false);
-                }
+                // Refresh UI
+                await fetchEntries();
+                if (onEntriesMoved) onEntriesMoved();
+                if (onTopicsChanged) onTopicsChanged();
+
+                // Clear suggestions and exit quick mode
+                setCategorySuggestions(null);
+                setIsQuickMode(false);
+                setSelectedEntries(new Set());
+
             } catch (error) {
                 console.error('Error accepting all suggestions:', error);
             } finally {
@@ -517,8 +575,8 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                                                                             topic.entries
                                                                                 .filter(e => e.entry_id === entry.entry_id)
                                                                                 .map(entryAssignment => (
-                                                                                    <div key={`${topic.topic_id}-${entryAssignment.entry_id}`} 
-                                                                                         className="group flex items-center gap-1 px-3 py-1.5 
+                                                                                    <div key={`${topic.topic_id}-${entryAssignment.entry_id}`}
+                                                                                        className="group flex items-center gap-1 px-3 py-1.5 
                                                                                                   bg-gray-50 dark:bg-gray-700/50 
                                                                                                   border border-gray-200 dark:border-gray-600
                                                                                                   rounded-md hover:shadow-sm transition-all"
@@ -585,7 +643,7 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                                                                                 .filter(e => e.entry_id === entry.entry_id)
                                                                                 .map(entryAssignment => (
                                                                                     <div key={`new-${topic.suggested_name}-${entryAssignment.entry_id}`}
-                                                                                         className="group flex items-center gap-1 px-3 py-1.5 
+                                                                                        className="group flex items-center gap-1 px-3 py-1.5 
                                                                                                   bg-gray-50 dark:bg-gray-700/50 
                                                                                                   border border-gray-200 dark:border-gray-600
                                                                                                   rounded-md hover:shadow-sm transition-all"
