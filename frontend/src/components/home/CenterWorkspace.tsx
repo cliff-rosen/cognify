@@ -1,5 +1,5 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react'
-import { Topic, UNCATEGORIZED_TOPIC_ID, isUncategorizedTopic, QuickCategorizeUncategorizedResponse, TopicAssignment, ExistingTopicAssignment, NewTopicProposal } from '../../lib/api/topicsApi'
+import { Topic, UNCATEGORIZED_TOPIC_ID, isUncategorizedTopic, QuickCategorizeUncategorizedResponse } from '../../lib/api/topicsApi'
 import { entriesApi, Entry } from '../../lib/api/entriesApi'
 import { topicsApi } from '../../lib/api/topicsApi'
 import { DragEvent } from 'react'
