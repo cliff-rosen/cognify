@@ -1,7 +1,7 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { Topic, UNCATEGORIZED_TOPIC_ID, isUncategorizedTopic, QuickCategorizeUncategorizedResponse, TopicAssignment, ExistingTopicAssignment, NewTopicProposal } from '../../lib/api/topicsApi'
 import { entriesApi, Entry } from '../../lib/api/entriesApi'
-import { topicsApi, QuickCategorizeProposal } from '../../lib/api/topicsApi'
+import { topicsApi } from '../../lib/api/topicsApi'
 import { DragEvent } from 'react'
 import AutoCategorizeWizard from './AutoCategorizeWizard';
 import QuickModeEntryList from '../entries/QuickModeEntryList';
@@ -17,12 +17,54 @@ export interface CenterWorkspaceHandle {
     refreshEntries: () => void;
 }
 
-interface CategorySuggestion {
-    topic_id: number | null;
-    topic_name: string;
-    is_new: boolean;
-    confidence_score: number;
-}
+const EmptyStateMessage = ({ isUncategorized = false }) => (
+    <div className="flex flex-col items-center justify-center h-full text-center p-8">
+        <div className="mb-6">
+            <svg className="w-16 h-16 text-gray-400 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+        </div>
+
+        <h3 className="text-xl font-semibold mb-2 text-gray-700 dark:text-gray-300">
+            {isUncategorized ? "No Uncategorized Entries" : "No Entries Yet"}
+        </h3>
+
+        <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md">
+            {isUncategorized ? (
+                "Great job! All your entries are organized into topics. To add new entries, use the input box at the top of the screen."
+            ) : (
+                "Start by adding entries using the input box at the top of the screen. New entries will go to Uncategorized unless you choose a topic."
+            )}
+        </p>
+
+        {!isUncategorized && (
+            <div className="space-y-4 text-sm text-left text-gray-600 dark:text-gray-400 max-w-md">
+                <h4 className="font-medium text-base text-gray-700 dark:text-gray-300">Getting Started:</h4>
+
+                <div className="flex items-start space-x-3">
+                    <span className="font-medium text-blue-600 dark:text-blue-400">1.</span>
+                    <span>
+                        <strong>Adding Entries:</strong> Type in the top box and click "Add Entry". Topics will be suggested, but you can ignore them to add to Uncategorized.
+                    </span>
+                </div>
+
+                <div className="flex items-start space-x-3">
+                    <span className="font-medium text-blue-600 dark:text-blue-400">2.</span>
+                    <span>
+                        <strong>Creating Topics:</strong> Click the + button next to "Topics" in the left sidebar to create new topics.
+                    </span>
+                </div>
+
+                <div className="flex items-start space-x-3">
+                    <span className="font-medium text-blue-600 dark:text-blue-400">3.</span>
+                    <span>
+                        <strong>Organizing:</strong> Drag and drop entries between topics, or use the AI assistant in Uncategorized view to organize multiple entries at once.
+                    </span>
+                </div>
+            </div>
+        )}
+    </div>
+);
 
 const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
     ({ selectedTopicId, onEntriesMoved, onTopicsChanged }, ref) => {
@@ -440,14 +482,14 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                 if (!currentEntry) return;
 
                 // Update entry while preserving its topic_id
-                await entriesApi.updateEntry(entryId, { 
+                await entriesApi.updateEntry(entryId, {
                     content: newContent,
                     topic_id: currentEntry.topic_id  // Explicitly include the current topic_id
                 });
 
                 // Update local state
-                setEntries(entries.map(e => 
-                    e.entry_id === entryId 
+                setEntries(entries.map(e =>
+                    e.entry_id === entryId
                         ? { ...e, content: newContent }  // Keep all other properties, just update content
                         : e
                 ));
@@ -528,9 +570,10 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                             </div>
                         </div>
 
-                        {/* Entries List */}
                         <div className="p-4 flex-1 overflow-y-auto">
-                            {isQuickMode ? (
+                            {entries.length === 0 ? (
+                                <EmptyStateMessage isUncategorized={true} />
+                            ) : isQuickMode ? (
                                 <QuickModeEntryList
                                     entries={entries}
                                     selectedEntries={selectedEntries}
@@ -606,14 +649,18 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                         {/* Content Area */}
                         <div className="p-4 flex-1 overflow-y-auto">
                             {activeTab === 'entries' && (
-                                <EntryList
-                                    entries={entries}
-                                    onDragStart={handleDragStart}
-                                    onDragEnd={handleDragEnd}
-                                    onDelete={(entry: Entry) => setEntryToDelete(entry)}
-                                    onEdit={handleEditEntry}
-                                    emptyMessage="No entries in this topic"
-                                />
+                                entries.length === 0 ? (
+                                    <EmptyStateMessage isUncategorized={false} />
+                                ) : (
+                                    <EntryList
+                                        entries={entries}
+                                        onDragStart={handleDragStart}
+                                        onDragEnd={handleDragEnd}
+                                        onDelete={(entry: Entry) => setEntryToDelete(entry)}
+                                        onEdit={handleEditEntry}
+                                        emptyMessage="No entries in this topic"
+                                    />
+                                )
                             )}
                             {activeTab === 'summary' && (
                                 <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
