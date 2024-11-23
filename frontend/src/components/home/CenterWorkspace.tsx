@@ -300,7 +300,7 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
         };
 
         const handleAcceptAllSuggestions = async () => {
-            if (!categorySuggestions) return;
+            if (!categorySuggestions || selectedEntries.size === 0) return;
 
             setIsInPlaceCategorizing(true);
             try {
@@ -312,9 +312,11 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                     confidence: number;
                 }>();
 
-                // Process existing topic assignments
+                // Process existing topic assignments (only for selected entries)
                 for (const topic of categorySuggestions.existing_topic_assignments) {
                     for (const entry of topic.entries) {
+                        if (!selectedEntries.has(entry.entry_id)) continue;  // Skip if not selected
+                        
                         const currentBest = entrySuggestions.get(entry.entry_id);
                         if (!currentBest || entry.confidence > currentBest.confidence) {
                             entrySuggestions.set(entry.entry_id, {
@@ -327,9 +329,11 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                     }
                 }
 
-                // Process new topic proposals
+                // Process new topic proposals (only for selected entries)
                 for (const topic of categorySuggestions.new_topic_proposals) {
                     for (const entry of topic.entries) {
+                        if (!selectedEntries.has(entry.entry_id)) continue;  // Skip if not selected
+                        
                         const currentBest = entrySuggestions.get(entry.entry_id);
                         if (!currentBest || entry.confidence > currentBest.confidence) {
                             entrySuggestions.set(entry.entry_id, {
@@ -352,9 +356,11 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                     );
                 }
 
-                // Clear suggestions and exit quick mode
-                setCategorySuggestions(null);
-                setIsQuickMode(false);
+                // Clear suggestions and exit quick mode if no more entries to process
+                if (entrySuggestions.size === selectedEntries.size) {
+                    setCategorySuggestions(null);
+                    setIsQuickMode(false);
+                }
             } catch (error) {
                 console.error('Error accepting all suggestions:', error);
             } finally {
@@ -654,7 +660,7 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                                                         <>
                                                             <button
                                                                 onClick={handleAcceptAllSuggestions}
-                                                                disabled={isInPlaceCategorizing}
+                                                                disabled={isInPlaceCategorizing || selectedEntries.size === 0}
                                                                 className="px-4 py-2 bg-green-500 text-white rounded-md 
                                                                          hover:bg-green-600 disabled:bg-gray-400 
                                                                          disabled:cursor-not-allowed flex items-center gap-2"
@@ -667,7 +673,7 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                                                                             d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                                                                     </svg>
                                                                 ) : null}
-                                                                Accept All
+                                                                Accept All Selected ({selectedEntries.size})
                                                             </button>
                                                             <button
                                                                 onClick={handleClearSuggestions}
@@ -678,7 +684,7 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                                                                          rounded-md transition-colors duration-150
                                                                          disabled:opacity-50 disabled:cursor-not-allowed"
                                                             >
-                                                                Clear
+                                                                Clear Suggestions
                                                             </button>
                                                         </>
                                                     )}
@@ -694,7 +700,7 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                                                     </button>
                                                     <button
                                                         onClick={handleProposeCategorization}
-                                                        disabled={selectedEntries.size === 0 || isInPlaceCategorizing}
+                                                        disabled={isInPlaceCategorizing}
                                                         className="px-4 py-2 bg-blue-500 text-white rounded-md 
                                                                  hover:bg-blue-600 disabled:bg-gray-400 
                                                                  disabled:cursor-not-allowed flex items-center gap-2"
@@ -707,8 +713,7 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                                                                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                                                             </svg>
                                                         ) : null}
-                                                        Propose Categories for Selected Entries
-                                                        ({selectedEntries.size})
+                                                        Propose Categories for All Entries
                                                     </button>
                                                 </div>
                                             </div>
