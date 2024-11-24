@@ -543,8 +543,8 @@ async def analyze_message(
     try:
         # Format context for the prompt
         context_str = "\n".join([
-            f"{msg['role']}: {msg['content']}"  # Using role consistently
-            for msg in context[-3:]  # Last 3 messages
+            f"{msg['role']}: {msg['content']}"
+            for msg in context[-3:]
         ])
         
         # Format tools for the prompt
@@ -568,36 +568,117 @@ Thread info:
 
 User message: {message}
 
-Return a JSON object mapping tool names to their parameters. Only include relevant tools.
-Example format:
+For each tool you want to use, you must provide all required parameters:
+- search_entries requires a 'query' parameter that should capture the key concepts to search for, not just single words
+- get_topic requires a 'topic_id' parameter
+- get_entries requires a 'topic_id' parameter
+- get_topic_stats requires a 'topic_id' parameter
+
+When constructing search queries:
+- Use multiple relevant keywords
+- Focus on the core concepts, not just individual words
+- Consider synonyms and related terms
+- Make queries that will find relevant content, not just exact matches
+
+Example search queries:
+- "career goals achievements professional growth"
+- "family relationships marriage children"
+- "health fitness exercise nutrition"
+- "learning education study knowledge"
+
+IMPORTANT: Return ONLY a JSON object, with no additional text or explanation.
+The JSON object should map tool names to their parameters. Only include tools if you can provide all required parameters.
+
+Example response formats:
+{{
+    "search_entries": {{"query": "career goals achievements professional"}}
+}}
+
+or
+
 {{
     "get_topic": {{"topic_id": 123}},
     "get_entries": {{"topic_id": 123, "limit": 5}}
 }}
 
-Tools to use:"""
+or
 
+{{}}
+
+Response (JSON only):"""
+
+        logger.debug(f"Sending prompt to AI service:\n{prompt}")
+        
         message = anthropic.messages.create(
             model="claude-3-sonnet-20240229",
             max_tokens=1000,
             temperature=0,
+            system="You are a JSON-only response generator. Return only valid JSON objects with no additional text or explanation. When constructing search queries, use multiple relevant keywords to capture core concepts.",
             messages=[{
-                "role": "user",  # Using role consistently
+                "role": "user",
                 "content": prompt
             }]
         )
         
-        # Parse the response into tool requests
+        # Log the raw response
+        raw_response = message.content[0].text.strip()
+        logger.debug(f"Raw AI response:\n{raw_response}")
+        
+        # Try to extract JSON if there's surrounding text
         try:
-            tool_requests = json.loads(message.content[0].text.strip())
-            logger.debug(f"Tool requests: {tool_requests}")
-            return tool_requests
+            # First try direct JSON parsing
+            tool_requests = json.loads(raw_response)
         except json.JSONDecodeError:
-            logger.error("Failed to parse tool requests from AI response")
+            # If that fails, try to find JSON object between curly braces
+            import re
+            json_match = re.search(r'\{[^{}]*\}', raw_response)
+            if json_match:
+                try:
+                    tool_requests = json.loads(json_match.group())
+                    logger.info(f"Successfully extracted JSON from response: {tool_requests}")
+                except json.JSONDecodeError:
+                    logger.error(f"Failed to parse extracted JSON: {json_match.group()}")
+                    return {}
+            else:
+                logger.error("No JSON object found in response")
+                return {}
+        
+        # Validation code remains the same...
+        if not isinstance(tool_requests, dict):
+            logger.error(f"AI response is not a dictionary: {raw_response}")
             return {}
             
+        valid_requests = {}
+        for tool_name, params in tool_requests.items():
+            if tool_name not in available_tools:
+                logger.warning(f"Unknown tool requested: {tool_name}")
+                continue
+                
+            if not isinstance(params, dict):
+                logger.warning(f"Invalid parameters for tool {tool_name}: {params}")
+                continue
+            
+            # Enhanced validation for search queries
+            if tool_name == "search_entries":
+                if "query" not in params:
+                    logger.warning("search_entries tool missing required query parameter")
+                    continue
+                query = params["query"].strip()
+                if len(query.split()) < 2:
+                    logger.warning(f"Search query too simple: '{query}'. Needs multiple keywords.")
+                    continue
+                
+            if tool_name in ["get_topic", "get_entries", "get_topic_stats"] and "topic_id" not in params:
+                logger.warning(f"{tool_name} tool missing required topic_id parameter")
+                continue
+            
+            valid_requests[tool_name] = params
+        
+        logger.info(f"Validated tool requests: {valid_requests}")
+        return valid_requests
+            
     except Exception as e:
-        logger.error(f"Error analyzing message: {str(e)}")
+        logger.error(f"Error in analyze_message: {str(e)}", exc_info=True)
         return {}
 
 async def generate_response(

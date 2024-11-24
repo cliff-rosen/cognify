@@ -7,6 +7,7 @@ from schemas import ChatMessageCreate, ChatMessageResponse, ChatThreadCreate, Ch
 from fastapi import HTTPException, status
 from services import ai_service
 from sqlalchemy import or_
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -205,9 +206,9 @@ async def get_or_create_thread(
     thread_id: Optional[int] = None,
     topic_id: Optional[int] = None
 ) -> ChatThread:
-    """
-    Gets an existing thread or creates a new one if needed.
-    """
+    """Gets an existing thread or creates a new one if needed."""
+    logger.info(f"get_or_create_thread called with thread_id={thread_id}, user_id={user_id}, topic_id={topic_id}")
+    
     if thread_id:
         thread = db.query(ChatThread).filter(
             ChatThread.thread_id == thread_id,
@@ -215,15 +216,17 @@ async def get_or_create_thread(
         ).first()
         
         if not thread:
+            logger.error(f"Thread {thread_id} not found for user {user_id}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Thread not found"
             )
             
+        logger.info(f"Found existing thread: {thread.__dict__}")
         return thread
         
     # Create new thread
-    return await create_thread(
+    thread = await create_thread(
         db=db,
         user_id=user_id,
         thread=ChatThreadCreate(
@@ -231,6 +234,8 @@ async def get_or_create_thread(
             title="New Chat"
         )
     )
+    logger.info(f"Created new thread: {thread.__dict__}")
+    return thread
 
 async def get_conversation_context(
     db: Session,
@@ -238,6 +243,8 @@ async def get_conversation_context(
     limit: int = 10
 ) -> List[Dict[str, Any]]:
     """Retrieves recent conversation history for a thread."""
+    logger.info(f"Getting conversation context for thread {thread_id}, limit={limit}")
+    
     messages = (
         db.query(ChatMessage)
         .filter(ChatMessage.thread_id == thread_id)
@@ -246,7 +253,7 @@ async def get_conversation_context(
         .all()
     )
     
-    return [
+    context = [
         {
             "role": msg.role,
             "content": msg.content,
@@ -254,6 +261,11 @@ async def get_conversation_context(
         }
         for msg in reversed(messages)
     ]
+    
+    logger.info(f"Retrieved {len(context)} context messages for thread {thread_id}")
+    logger.debug(f"Context messages: {json.dumps(context, indent=2, default=str)}")
+    
+    return context
 
 ################## AI Tools ##################
 
@@ -293,22 +305,30 @@ async def get_entries_tool(db: Session, user_id: int, topic_id: int, limit: int 
 
 async def search_entries_tool(db: Session, user_id: int, query: str) -> Dict[str, Any]:
     """Search through user's entries"""
-    entries = db.query(Entry).filter(
-        Entry.user_id == user_id,
-        Entry.content.ilike(f"%{query}%")
-    ).limit(5).all()
+    logger.info(f"Searching entries for user {user_id} (temporary: returning all entries)")
     
-    return {
+    # Temporarily return all entries instead of searching
+    entries = db.query(Entry).filter(
+        Entry.user_id == user_id
+    ).order_by(Entry.creation_date.desc()).all()
+    
+    result = {
         "entries": [
             {
                 "entry_id": entry.entry_id,
                 "content": entry.content,
                 "topic_id": entry.topic_id,
-                "creation_date": entry.creation_date
+                "creation_date": entry.creation_date.isoformat() if entry.creation_date else None,  # Convert datetime to ISO string
+                "topic_name": entry.topic.topic_name if entry.topic else None
             }
             for entry in entries
         ]
     }
+    
+    logger.info(f"Retrieved {len(result['entries'])} entries")
+    logger.debug(f"Entry preview: {[e['content'][:100] + '...' for e in result['entries']]}")
+    
+    return result
 
 async def get_topic_stats_tool(db: Session, user_id: int, topic_id: int) -> Dict[str, Any]:
     """Get statistics about a topic"""
@@ -335,100 +355,165 @@ async def process_message(
 ) -> ChatMessageResponse:
     """
     Processes a user message within a thread and generates an AI response.
-    
-    Args:
-        db: Database session
-        user_id: ID of the user sending the message
-        message: The message to process
-        thread_id: Optional thread ID (creates new thread if None)
-        
-    Returns:
-        The AI's response message
     """
-    # Get or create thread
-    thread = await get_or_create_thread(
-        db=db,
-        user_id=user_id,
-        thread_id=thread_id,
-        topic_id=None  # topic_id is now only associated with thread, not message
-    )
-    
-    # Store user message
-    user_message = await create_chat_message(
-        db=db,
-        user_id=user_id,
-        message=message,
-        thread_id=thread.thread_id
-    )
-    
-    # Get thread context including the new user message
-    context = await get_conversation_context(
-        db=db,
-        thread_id=thread.thread_id
-    )
-    
-    # Prepare tool context
-    available_tools = {
-        "get_topic": get_topic_tool.__doc__,
-        "get_entries": get_entries_tool.__doc__,
-        "search_entries": search_entries_tool.__doc__,
-        "get_topic_stats": get_topic_stats_tool.__doc__,
-    }
-    
-    # Get LLM's analysis and tool requests
-    tool_requests = await ai_service.analyze_message(
-        message=user_message.content,  # Use the stored message content
-        context=context,
-        available_tools=available_tools,
-        thread_info={
-            "thread_id": thread.thread_id,
-            "topic_id": thread.topic_id,
-            "title": thread.title
+    logger.info(f"Processing message for user {user_id} | Thread: {thread_id or 'new'}")
+    try:
+        # Get or create thread
+        thread = await get_or_create_thread(
+            db=db,
+            user_id=user_id,
+            thread_id=thread_id,
+            topic_id=None
+        )
+        logger.info(f"Using thread: {thread.__dict__}")
+        
+        # Store user message
+        user_message = await create_chat_message(
+            db=db,
+            user_id=user_id,
+            message=message,
+            thread_id=thread.thread_id
+        )
+        logger.info(f"Stored user message: {user_message.__dict__}")
+        
+        # Get thread context
+        context = await get_conversation_context(
+            db=db,
+            thread_id=thread.thread_id
+        )
+        logger.info(f"Retrieved {len(context)} context messages: {[msg['content'][:50] + '...' for msg in context]}")
+        
+        # Prepare tool context and available tools with their parameters
+        available_tools = {
+            "get_topic": {
+                "description": get_topic_tool.__doc__,
+                "required_params": ["topic_id"]
+            },
+            "get_entries": {
+                "description": get_entries_tool.__doc__,
+                "required_params": ["topic_id"],
+                "optional_params": ["limit"]
+            },
+            "search_entries": {
+                "description": search_entries_tool.__doc__,
+                "required_params": ["query"]
+            },
+            "get_topic_stats": {
+                "description": get_topic_stats_tool.__doc__,
+                "required_params": ["topic_id"]
+            }
         }
-    )
-    
-    # Execute requested tools
-    tool_results = {}
-    tools = {
-        "get_topic": get_topic_tool,
-        "get_entries": get_entries_tool,
-        "search_entries": search_entries_tool,
-        "get_topic_stats": get_topic_stats_tool,
-    }
-    
-    for tool_name, tool_params in tool_requests.items():
-        if tool_name in tools:
+        logger.debug(f"Available tools: {json.dumps(available_tools, indent=2)}")
+        
+        # Get LLM's analysis and tool requests
+        logger.info("Analyzing message with AI service...")
+        tool_requests = await ai_service.analyze_message(
+            message=user_message.content,
+            context=context,
+            available_tools={name: info["description"] for name, info in available_tools.items()},
+            thread_info={
+                "thread_id": thread.thread_id,
+                "topic_id": thread.topic_id,
+                "title": thread.title
+            }
+        )
+        logger.info(f"AI requested tools: {json.dumps(tool_requests, indent=2)}")
+        
+        # Execute requested tools with parameter validation
+        tool_results = {}
+        tools = {
+            "get_topic": get_topic_tool,
+            "get_entries": get_entries_tool,
+            "search_entries": search_entries_tool,
+            "get_topic_stats": get_topic_stats_tool,
+        }
+        
+        for tool_name, tool_params in tool_requests.items():
+            if tool_name not in tools:
+                logger.warning(f"Unknown tool requested: {tool_name}")
+                continue
+                
             try:
-                tool_results[tool_name] = await tools[tool_name](
+                # Validate required parameters
+                tool_info = available_tools[tool_name]
+                missing_params = [
+                    param for param in tool_info["required_params"] 
+                    if param not in tool_params
+                ]
+                
+                if missing_params:
+                    logger.error(f"Tool {tool_name} missing required parameters: {missing_params}")
+                    tool_results[tool_name] = {
+                        "error": f"Missing required parameters: {', '.join(missing_params)}"
+                    }
+                    continue
+                
+                # Remove any unexpected parameters
+                valid_params = set(tool_info.get("required_params", []) + 
+                                tool_info.get("optional_params", []))
+                filtered_params = {
+                    k: v for k, v in tool_params.items() 
+                    if k in valid_params
+                }
+                
+                logger.info(f"Executing tool {tool_name} with params: {filtered_params}")
+                result = await tools[tool_name](
                     db=db,
                     user_id=user_id,
-                    **tool_params
+                    **filtered_params
                 )
+                logger.info(f"Tool {tool_name} result: {json.dumps(result, indent=2)}")
+                tool_results[tool_name] = result
+                
             except Exception as e:
-                logger.error(f"Tool {tool_name} failed: {str(e)}")
+                logger.error(
+                    f"Tool {tool_name} failed: {str(e)}", 
+                    exc_info=True,
+                    extra={
+                        "tool_name": tool_name,
+                        "params": tool_params
+                    }
+                )
                 tool_results[tool_name] = {"error": str(e)}
-    
-    # Generate AI response using stored message
-    ai_response = await ai_service.generate_response(
-        message=user_message.content,  # Use the stored message content
-        context=context,
-        tool_results=tool_results,
-        thread_info={
-            "thread_id": thread.thread_id,
-            "topic_id": thread.topic_id,
-            "title": thread.title
-        }
-    )
-    
-    # Store AI response
-    response_message = await create_chat_message(
-        db=db,
-        user_id=user_id,
-        message=ChatMessageCreate(
-            content=ai_response,
-            role="assistant"
-        ),
-        thread_id=thread.thread_id
-    )
-    
-    return response_message
+        
+        # Generate AI response
+        logger.info("Generating AI response...")
+        ai_response = await ai_service.generate_response(
+            message=user_message.content,
+            context=context,
+            tool_results=tool_results,
+            thread_info={
+                "thread_id": thread.thread_id,
+                "topic_id": thread.topic_id,
+                "title": thread.title
+            }
+        )
+        logger.info(f"AI response generated ({len(ai_response)} chars): {ai_response[:200]}...")
+        
+        # Store AI response
+        response_message = await create_chat_message(
+            db=db,
+            user_id=user_id,
+            message=ChatMessageCreate(
+                content=ai_response,
+                role="assistant"
+            ),
+            thread_id=thread.thread_id
+        )
+        logger.info(f"Stored AI response as message: {response_message.__dict__}")
+        
+        logger.info(f"Message processing complete for thread {thread.thread_id}")
+        return response_message
+        
+    except Exception as e:
+        logger.error(
+            f"Error processing message for user {user_id}: {str(e)}", 
+            exc_info=True,
+            extra={
+                "user_id": user_id,
+                "thread_id": thread_id,
+                "message_preview": message.content[:100],
+                "stack_trace": True
+            }
+        )
+        raise
