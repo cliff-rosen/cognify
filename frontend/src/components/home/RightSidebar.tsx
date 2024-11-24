@@ -1,15 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-
-interface Message {
-    id: string;
-    content: string;
-    sender: 'user' | 'assistant';
-    timestamp: Date;
-}
+import { chatApi, ChatMessage, ChatThread } from '../../lib/api/chatApi';
 
 export default function RightSidebar() {
-    const [messages, setMessages] = useState<Message[]>([]);
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [currentThread, setCurrentThread] = useState<ChatThread | null>(null);
     const [inputMessage, setInputMessage] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const scrollToBottom = () => {
@@ -22,29 +18,43 @@ export default function RightSidebar() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!inputMessage.trim() || isLoading) return;
 
-        if (!inputMessage.trim()) return;
-
-        const userMessage: Message = {
-            id: Date.now().toString(),
-            content: inputMessage,
-            sender: 'user',
-            timestamp: new Date()
-        };
-
-        setMessages(prev => [...prev, userMessage]);
-        setInputMessage('');
-
-        const assistantMessage: Message = {
-            id: (Date.now() + 1).toString(),
-            content: "This is a placeholder response. AI integration coming soon!",
-            sender: 'assistant',
-            timestamp: new Date()
-        };
-
-        setTimeout(() => {
-            setMessages(prev => [...prev, assistantMessage]);
-        }, 1000);
+        setIsLoading(true);
+        try {
+            if (!currentThread) {
+                // Create new thread with first message
+                const message = await chatApi.sendMessageNewThread({
+                    content: inputMessage,
+                    role: 'user'
+                });
+                // Create a new thread object from the message response
+                const newThread: ChatThread = {
+                    thread_id: message.thread_id,
+                    user_id: message.user_id,
+                    topic_id: null,
+                    title: 'New Chat',
+                    created_at: message.timestamp,
+                    last_message_at: message.timestamp,
+                    status: 'active'
+                };
+                setCurrentThread(newThread);
+                setMessages(prev => [...prev, message]);
+            } else {
+                // Send message in existing thread
+                const message = await chatApi.sendMessage(currentThread.thread_id, {
+                    content: inputMessage,
+                    role: 'user'
+                });
+                setMessages(prev => [...prev, message]);
+            }
+            setInputMessage('');
+        } catch (error) {
+            console.error('Error sending message:', chatApi.handleError(error));
+            // Handle error (show toast notification, etc.)
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -65,18 +75,18 @@ export default function RightSidebar() {
                     ) : (
                         messages.map(message => (
                             <div
-                                key={message.id}
-                                className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                                key={message.message_id}
+                                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                             >
                                 <div
-                                    className={`max-w-[80%] rounded-lg px-4 py-2 ${message.sender === 'user'
+                                    className={`max-w-[80%] rounded-lg px-4 py-2 ${message.role === 'user'
                                             ? 'bg-blue-500 text-white'
                                             : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
                                         }`}
                                 >
                                     <p>{message.content}</p>
                                     <span className="text-xs opacity-70 mt-1 block">
-                                        {message.timestamp.toLocaleTimeString()}
+                                        {chatApi.formatChatTimestamp(message.timestamp)}
                                     </span>
                                 </div>
                             </div>
@@ -102,7 +112,7 @@ export default function RightSidebar() {
                         type="submit"
                         className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 
                                  transition-colors duration-200 disabled:opacity-50"
-                        disabled={!inputMessage.trim()}
+                        disabled={!inputMessage.trim() || isLoading}
                     >
                         Send
                     </button>

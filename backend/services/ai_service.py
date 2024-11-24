@@ -568,35 +568,40 @@ Thread info:
 
 User message: {message}
 
+For personal analysis requests (e.g., "analyze me", "what are my interests"):
+1. First use get_all_topics to get an overview of topic categories
+2. Then use search_entries to get relevant content across all topics
+3. Combine both to provide comprehensive analysis
+
 For topic analysis requests:
 - Use get_all_topics to get an overview of all topics
 - Use get_topic for details about specific topics
 - Use get_topic_stats for statistics about specific topics
-- Only use search_entries if specifically asked about entry content
+
+For content search requests:
+- Use search_entries with multiple relevant keywords
 
 For each tool you want to use, you must provide all required parameters:
-- search_entries requires a 'query' parameter that should capture the key concepts
+- search_entries requires a 'query' parameter with multiple keywords
 - get_topic requires a 'topic_id' parameter
 - get_entries requires a 'topic_id' parameter
 - get_topic_stats requires a 'topic_id' parameter
 - get_all_topics requires no parameters
 
 IMPORTANT: Return ONLY a JSON object, with no additional text or explanation.
-The JSON object should map tool names to their parameters. Only include tools if you can provide all required parameters.
 
-Example responses for topic analysis:
+Example response for personal analysis:
+{{
+    "get_all_topics": {{}},
+    "search_entries": {{"query": "goals interests priorities personal life"}}
+}}
+
+Example response for topic analysis:
 {{
     "get_all_topics": {{}}
 }}
 
-or 
-
-{{
-    "get_topic": {{"topic_id": 101}},
-    "get_topic_stats": {{"topic_id": 101}}
-}}
-
-Example responses for content search:
+Example response for content search:
 {{
     "search_entries": {{"query": "career goals achievements professional"}}
 }}

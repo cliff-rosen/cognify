@@ -1,4 +1,4 @@
-import { api } from '../api'
+import { api, handleApiError, formatTimestamp } from './index'
 
 export interface Topic {
     topic_id: number;
@@ -202,5 +202,9 @@ export const topicsApi = {
         const response = await api.post('/api/topics/quick-categorize', { entry_ids: entryIds });
         return response.data;
     },
+
+    // Add utility functions for consistency
+    formatTopicTimestamp: formatTimestamp,
+    handleError: handleApiError
 
 } 

@@ -1,4 +1,4 @@
-import { api } from '../api'
+import { api, handleApiError, formatTimestamp } from './index'
 
 export interface Entry {
     entry_id: number;
@@ -46,4 +46,7 @@ export const entriesApi = {
         })
         return response.data
     },
+
+    formatEntryTimestamp: formatTimestamp,
+    handleError: handleApiError
 } 

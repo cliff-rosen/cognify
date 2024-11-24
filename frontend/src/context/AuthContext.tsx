@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { api } from '../lib/api'
+import { api } from '../lib/api/index'
 
 interface AuthContextType {
     isAuthenticated: boolean
