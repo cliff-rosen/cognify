@@ -23,9 +23,24 @@ async def create_thread(
     A thread represents a distinct conversation context, optionally associated
     with a specific topic. Threads help maintain conversation state and context.
     """
+    # If topic_id is 0 or invalid, set it to None
+    topic_id = thread.topic_id if thread.topic_id and thread.topic_id > 0 else None
+    
+    # If topic_id is provided, verify it exists and belongs to user
+    if topic_id:
+        topic = db.query(Topic).filter(
+            Topic.topic_id == topic_id,
+            Topic.user_id == user_id
+        ).first()
+        if not topic:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Topic not found or does not belong to user"
+            )
+    
     db_thread = ChatThread(
         user_id=user_id,
-        topic_id=thread.topic_id,
+        topic_id=topic_id,  # Use the validated topic_id
         title=thread.title or "New Chat",
         created_at=datetime.utcnow(),
         last_message_at=datetime.utcnow(),
@@ -117,9 +132,8 @@ async def create_chat_message(
     db_message = ChatMessage(
         user_id=user_id,
         thread_id=thread_id,
-        topic_id=message.topic_id,
-        content=message.message_text,
-        role=message.message_type,
+        content=message.content,
+        role=message.role,
         timestamp=datetime.utcnow()
     )
     db.add(db_message)
@@ -144,7 +158,7 @@ async def delete_message(
         ChatMessage.message_id == message_id,
         ChatMessage.thread_id == thread_id,
         ChatMessage.user_id == user_id,
-        ChatMessage.role == "user"  # Only user messages can be deleted
+        ChatMessage.role == "user"
     ).first()
     
     if not message:
@@ -312,3 +326,109 @@ async def get_topic_stats_tool(db: Session, user_id: int, topic_id: int) -> Dict
         "entry_count": entry_count,
         "latest_entry_date": latest_entry.creation_date if latest_entry else None
     }
+
+async def process_message(
+    db: Session,
+    user_id: int,
+    message: ChatMessageCreate,
+    thread_id: Optional[int] = None,
+) -> ChatMessageResponse:
+    """
+    Processes a user message within a thread and generates an AI response.
+    
+    Args:
+        db: Database session
+        user_id: ID of the user sending the message
+        message: The message to process
+        thread_id: Optional thread ID (creates new thread if None)
+        
+    Returns:
+        The AI's response message
+    """
+    # Get or create thread
+    thread = await get_or_create_thread(
+        db=db,
+        user_id=user_id,
+        thread_id=thread_id,
+        topic_id=None  # topic_id is now only associated with thread, not message
+    )
+    
+    # Store user message
+    user_message = await create_chat_message(
+        db=db,
+        user_id=user_id,
+        message=message,
+        thread_id=thread.thread_id
+    )
+    
+    # Get thread context including the new user message
+    context = await get_conversation_context(
+        db=db,
+        thread_id=thread.thread_id
+    )
+    
+    # Prepare tool context
+    available_tools = {
+        "get_topic": get_topic_tool.__doc__,
+        "get_entries": get_entries_tool.__doc__,
+        "search_entries": search_entries_tool.__doc__,
+        "get_topic_stats": get_topic_stats_tool.__doc__,
+    }
+    
+    # Get LLM's analysis and tool requests
+    tool_requests = await ai_service.analyze_message(
+        message=user_message.content,  # Use the stored message content
+        context=context,
+        available_tools=available_tools,
+        thread_info={
+            "thread_id": thread.thread_id,
+            "topic_id": thread.topic_id,
+            "title": thread.title
+        }
+    )
+    
+    # Execute requested tools
+    tool_results = {}
+    tools = {
+        "get_topic": get_topic_tool,
+        "get_entries": get_entries_tool,
+        "search_entries": search_entries_tool,
+        "get_topic_stats": get_topic_stats_tool,
+    }
+    
+    for tool_name, tool_params in tool_requests.items():
+        if tool_name in tools:
+            try:
+                tool_results[tool_name] = await tools[tool_name](
+                    db=db,
+                    user_id=user_id,
+                    **tool_params
+                )
+            except Exception as e:
+                logger.error(f"Tool {tool_name} failed: {str(e)}")
+                tool_results[tool_name] = {"error": str(e)}
+    
+    # Generate AI response using stored message
+    ai_response = await ai_service.generate_response(
+        message=user_message.content,  # Use the stored message content
+        context=context,
+        tool_results=tool_results,
+        thread_info={
+            "thread_id": thread.thread_id,
+            "topic_id": thread.topic_id,
+            "title": thread.title
+        }
+    )
+    
+    # Store AI response
+    response_message = await create_chat_message(
+        db=db,
+        user_id=user_id,
+        message=ChatMessageCreate(
+            content=ai_response,
+            role="assistant"
+        ),
+        thread_id=thread.thread_id
+    )
+    
+    return response_message

@@ -1,5 +1,5 @@
 from anthropic import Anthropic
-from typing import Optional, List, Dict, Tuple
+from typing import Optional, List, Dict, Tuple, Any
 import os
 import logging
 import json
@@ -530,3 +530,132 @@ Return a JSON object with this structure:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to analyze entries"
         )
+
+async def analyze_message(
+    message: str,
+    context: List[Dict[str, Any]],
+    available_tools: Dict[str, str],
+    thread_info: Dict[str, Any]
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Analyzes a user message to determine which tools to use.
+    """
+    try:
+        # Format context for the prompt
+        context_str = "\n".join([
+            f"{msg['role']}: {msg['content']}"  # Using role consistently
+            for msg in context[-3:]  # Last 3 messages
+        ])
+        
+        # Format tools for the prompt
+        tools_str = "\n".join([
+            f"- {name}: {desc}"
+            for name, desc in available_tools.items()
+        ])
+        
+        prompt = f"""Based on the user's message and conversation context, determine which tools would be helpful to provide a good response.
+
+Context:
+{context_str}
+
+Available tools:
+{tools_str}
+
+Thread info:
+- Thread ID: {thread_info['thread_id']}
+- Topic ID: {thread_info.get('topic_id', 'None')}
+- Title: {thread_info['title']}
+
+User message: {message}
+
+Return a JSON object mapping tool names to their parameters. Only include relevant tools.
+Example format:
+{{
+    "get_topic": {{"topic_id": 123}},
+    "get_entries": {{"topic_id": 123, "limit": 5}}
+}}
+
+Tools to use:"""
+
+        message = anthropic.messages.create(
+            model="claude-3-sonnet-20240229",
+            max_tokens=1000,
+            temperature=0,
+            messages=[{
+                "role": "user",  # Using role consistently
+                "content": prompt
+            }]
+        )
+        
+        # Parse the response into tool requests
+        try:
+            tool_requests = json.loads(message.content[0].text.strip())
+            logger.debug(f"Tool requests: {tool_requests}")
+            return tool_requests
+        except json.JSONDecodeError:
+            logger.error("Failed to parse tool requests from AI response")
+            return {}
+            
+    except Exception as e:
+        logger.error(f"Error analyzing message: {str(e)}")
+        return {}
+
+async def generate_response(
+    message: str,
+    context: List[Dict[str, Any]],
+    tool_results: Dict[str, Any],
+    thread_info: Dict[str, Any]
+) -> str:
+    """
+    Generates an AI response using the message, context, and tool results.
+    """
+    try:
+        # Format context
+        context_str = "\n".join([
+            f"{msg['role']}: {msg['content']}"  # Using role consistently
+            for msg in context[-3:]
+        ])
+        
+        # Format tool results
+        tools_str = ""
+        for tool_name, result in tool_results.items():
+            tools_str += f"\n{tool_name} results:\n"
+            if isinstance(result, dict) and "error" in result:
+                tools_str += f"Error: {result['error']}\n"
+            else:
+                tools_str += f"{json.dumps(result, indent=2)}\n"
+        
+        prompt = f"""Generate a helpful response to the user's message using the available context and tool results.
+
+Conversation context:
+{context_str}
+
+Tool results:{tools_str}
+
+Thread info:
+- Thread ID: {thread_info['thread_id']}
+- Topic ID: {thread_info.get('topic_id', 'None')}
+- Title: {thread_info['title']}
+
+User message: {message}
+
+Generate a clear, helpful response. If tool results show errors, handle them gracefully.
+Be concise but informative. If referencing entries or topics, include relevant details from the tool results.
+
+Response:"""
+
+        message = anthropic.messages.create(
+            model="claude-3-sonnet-20240229",
+            max_tokens=2000,
+            temperature=0.7,
+            messages=[{
+                "role": "user",  # Using role consistently
+                "content": prompt
+            }]
+        )
+        
+        return message.content[0].text.strip()
+        
+    except Exception as e:
+        logger.error(f"Error generating response: {str(e)}")
+        return "I apologize, but I encountered an error while processing your request. Please try again."

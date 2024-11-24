@@ -250,28 +250,26 @@ class QuickCategorizeUncategorizedResponse(BaseModel):
 ##### CHAT SCHEMA #####
 class ChatMessageCreate(BaseModel):
     """Schema for creating a new chat message"""
-    message_text: str = Field(
+    content: str = Field(
         min_length=1,
         description="The text content of the message",
-        example="What can you tell me about neural networks?"
+        example="What can you tell me about my Machine Learning entries?"
     )
-    topic_id: Optional[int] = Field(
-        default=None,
-        description="ID of the topic this message belongs to",
-        example=1
-    )
-    message_type: str = Field(
-        description="Type of message (user/assistant/system)",
+    role: str = Field(
+        default="user",
+        description="Role of the message sender (user/assistant/system)",
         example="user"
     )
+
+    model_config = ConfigDict(from_attributes=True)
 
 class ChatMessageResponse(BaseModel):
     """Schema for chat message responses"""
     message_id: int = Field(description="Unique identifier for the message")
+    thread_id: int = Field(description="ID of the thread this message belongs to")
     user_id: int = Field(description="ID of the user who sent/received this message")
-    topic_id: Optional[int] = Field(description="ID of the associated topic, if any")
-    message_text: str = Field(description="The content of the message")
-    message_type: str = Field(description="Type of message (user/assistant/system)")
+    content: str = Field(description="The content of the message")
+    role: str = Field(description="Role of the message sender (user/assistant/system)")
     timestamp: datetime = Field(description="When the message was created")
 
     model_config = ConfigDict(from_attributes=True)
