@@ -61,7 +61,7 @@ export default function HomeComponent() {
             {/* Main Content Area */}
             <div className="flex-1 flex min-h-0">
                 {/* Left Sidebar */}
-                <aside className="w-64 flex-none border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
+                <aside className="w-64 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
                     <LeftSidebar
                         onSelectTopic={setSelectedTopicId}
                         selectedTopicId={selectedTopicId}
@@ -114,7 +114,7 @@ export default function HomeComponent() {
 
                     {/* Right Sidebar with conditional rendering */}
                     {showRightSidebar && (
-                        <aside className="w-80 flex-none border-l border-gray-200 dark:border-gray-700">
+                        <aside className="w-[500px] flex-shrink-0 border-l border-gray-200 dark:border-gray-700">
                             <RightSidebar />
                         </aside>
                     )}

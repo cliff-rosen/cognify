@@ -12,7 +12,8 @@
   "dependencies": {
     "@heroicons/react": "^2.1.5",
     "@hookform/resolvers": "^3.9.1",
-    "@tanstack/react-query": "^5.60.5",
+    "@tanstack/react-query": "^5.61.3",
+    "@types/react-syntax-highlighter": "^15.5.13",
     "axios": "^1.7.7",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
@@ -22,7 +23,10 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.53.2",
+    "react-markdown": "^9.0.1",
     "react-router-dom": "^6.28.0",
+    "react-syntax-highlighter": "^15.6.1",
+    "remark-gfm": "^4.0.0",
     "tailwind-merge": "^2.5.4",
     "zod": "^3.23.8"
   },

@@ -1,5 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { chatApi, ChatMessage, ChatThread } from '../../lib/api/chatApi';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import type { Components } from 'react-markdown';
+import type { CSSProperties } from 'react';
+
 
 export default function RightSidebar() {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -7,6 +14,7 @@ export default function RightSidebar() {
     const [inputMessage, setInputMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -16,6 +24,22 @@ export default function RightSidebar() {
         scrollToBottom();
     }, [messages]);
 
+    // Auto-resize textarea as content grows
+    const adjustTextareaHeight = () => {
+        const textarea = textareaRef.current;
+        if (textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = `${textarea.scrollHeight}px`;
+        }
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSubmit(e as any);
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!inputMessage.trim() || isLoading) return;
@@ -23,6 +47,11 @@ export default function RightSidebar() {
         setIsLoading(true);
         const userMessage = inputMessage;
         setInputMessage(''); // Clear input immediately
+
+        // Reset textarea height
+        if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+        }
 
         // Add user message to UI immediately
         const tempUserMessage: Partial<ChatMessage> = {
@@ -43,12 +72,10 @@ export default function RightSidebar() {
         try {
             let response: ChatMessage;
             if (!currentThread) {
-                // Create new thread with first message
                 response = await chatApi.sendMessageNewThread({
                     content: userMessage,
                     role: 'user'
                 });
-                // Create a new thread object from the message response
                 const newThread: ChatThread = {
                     thread_id: response.thread_id,
                     user_id: response.user_id,
@@ -60,7 +87,6 @@ export default function RightSidebar() {
                 };
                 setCurrentThread(newThread);
             } else {
-                // Send message in existing thread
                 response = await chatApi.sendMessage(currentThread.thread_id, {
                     content: userMessage,
                     role: 'user'
@@ -69,14 +95,13 @@ export default function RightSidebar() {
 
             // Replace temporary messages with actual response
             setMessages(prev => {
-                const withoutTemp = prev.slice(0, -2); // Remove temp user and loading messages
-                return [...withoutTemp, 
-                    { ...response, role: 'user', content: userMessage }, // Add actual user message
-                    { ...response, role: 'assistant' } // Add AI response
+                const withoutTemp = prev.slice(0, -2);
+                return [...withoutTemp,
+                { ...response, role: 'user', content: userMessage },
+                { ...response, role: 'assistant' }
                 ];
             });
         } catch (error) {
-            // Remove loading message and show error
             setMessages(prev => {
                 const withoutLoading = prev.slice(0, -1);
                 return [...withoutLoading, {
@@ -88,6 +113,27 @@ export default function RightSidebar() {
             console.error('Error sending message:', chatApi.handleError(error));
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const MarkdownComponents: Components = {
+        code({ className, children, ...props }) {
+            const match = /language-(\w+)/.exec(className || '');
+            const isInline = !match;
+
+            return isInline ? (
+                <code className={className} {...props}>
+                    {children}
+                </code>
+            ) : (
+                <SyntaxHighlighter
+                    style={oneDark as unknown as { [key: string]: CSSProperties }}
+                    language={match[1]}
+                    PreTag="div"
+                >
+                    {String(children).replace(/\n$/, '')}
+                </SyntaxHighlighter>
+            );
         }
     };
 
@@ -113,11 +159,10 @@ export default function RightSidebar() {
                                 className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                             >
                                 <div
-                                    className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                                        message.role === 'user'
-                                            ? 'bg-blue-500 text-white'
-                                            : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
-                                    }`}
+                                    className={`max-w-[80%] rounded-lg px-4 py-2 ${message.role === 'user'
+                                        ? 'bg-blue-500 text-white'
+                                        : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
+                                        }`}
                                 >
                                     {message.content === '...' ? (
                                         <div className="flex items-center space-x-2">
@@ -127,7 +172,14 @@ export default function RightSidebar() {
                                         </div>
                                     ) : (
                                         <>
-                                            <p className="whitespace-pre-wrap">{message.content}</p>
+                                            <div className="prose dark:prose-invert max-w-none">
+                                                <ReactMarkdown
+                                                    remarkPlugins={[remarkGfm]}
+                                                    components={MarkdownComponents}
+                                                >
+                                                    {message.content}
+                                                </ReactMarkdown>
+                                            </div>
                                             <span className="text-xs opacity-70 mt-1 block">
                                                 {chatApi.formatChatTimestamp(message.timestamp)}
                                             </span>
@@ -144,21 +196,28 @@ export default function RightSidebar() {
             {/* Input Area */}
             <div className="shrink-0 border-t border-gray-200 dark:border-gray-700">
                 <form onSubmit={handleSubmit} className="flex gap-2 p-4">
-                    <input
-                        type="text"
+                    <textarea
+                        ref={textareaRef}
+                        rows={1}
                         value={inputMessage}
-                        onChange={(e) => setInputMessage(e.target.value)}
-                        placeholder="Type your message..."
+                        onChange={(e) => {
+                            setInputMessage(e.target.value);
+                            adjustTextareaHeight();
+                        }}
+                        onKeyDown={handleKeyDown}
+                        placeholder="Type your message... (Shift + Enter for new line)"
                         disabled={isLoading}
                         className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 
                                  px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 
-                                 dark:bg-gray-700 dark:text-white
-                                 disabled:opacity-50 disabled:cursor-not-allowed"
+                                 dark:bg-gray-700 dark:text-white resize-none
+                                 disabled:opacity-50 disabled:cursor-not-allowed
+                                 min-h-[40px] max-h-[200px]"
                     />
                     <button
                         type="submit"
                         className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 
-                                 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed
+                                 h-[40px]"
                         disabled={!inputMessage.trim() || isLoading}
                     >
                         {isLoading ? 'Sending...' : 'Send'}
