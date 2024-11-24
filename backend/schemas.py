@@ -297,3 +297,8 @@ class ChatThreadResponse(BaseModel):
     status: str
 
     model_config = ConfigDict(from_attributes=True)
+
+class ChatThreadUpdate(BaseModel):
+    """Schema for updating a chat thread"""
+    title: Optional[str] = None
+    status: Optional[str] = Field(None, pattern="^(active|archived)$")

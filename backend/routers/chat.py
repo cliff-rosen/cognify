@@ -7,7 +7,8 @@ from schemas import (
     ChatMessageResponse, 
     ChatMessageList,
     ChatThreadCreate,
-    ChatThreadResponse
+    ChatThreadResponse,
+    ChatThreadUpdate
 )
 from dependencies import CurrentUser
 from services import chat_service, auth_service
@@ -306,3 +307,100 @@ async def archive_thread(
         thread_id=thread_id
     )
     return None
+
+@router.patch(
+    "/threads/{thread_id}",
+    response_model=ChatThreadResponse,
+    summary="Update thread title or status",
+    responses={
+        200: {"description": "Thread successfully updated"},
+        401: {"description": "Not authenticated"},
+        403: {"description": "Thread belongs to another user"},
+        404: {"description": "Thread not found"}
+    }
+)
+async def update_thread(
+    thread_id: int,
+    updates: ChatThreadUpdate,
+    current_user = Depends(auth_service.validate_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Update thread properties like title or status.
+    
+    Parameters:
+    - **thread_id**: ID of the thread to update
+    - **title**: Optional new title for the thread
+    - **status**: Optional new status (active/archived)
+    """
+    return await chat_service.update_thread(
+        db=db,
+        user_id=current_user.user_id,
+        thread_id=thread_id,
+        updates=updates
+    )
+
+@router.delete(
+    "/threads/{thread_id}/messages/{message_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a message",
+    responses={
+        204: {"description": "Message successfully deleted"},
+        401: {"description": "Not authenticated"},
+        403: {"description": "Message belongs to another user"},
+        404: {"description": "Message not found"}
+    }
+)
+async def delete_message(
+    thread_id: int,
+    message_id: int,
+    current_user = Depends(auth_service.validate_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete a specific message from a thread.
+    Only user messages can be deleted.
+    
+    Parameters:
+    - **thread_id**: ID of the thread containing the message
+    - **message_id**: ID of the message to delete
+    """
+    await chat_service.delete_message(
+        db=db,
+        user_id=current_user.user_id,
+        thread_id=thread_id,
+        message_id=message_id
+    )
+    return None
+
+@router.get(
+    "/threads/search",
+    response_model=List[ChatThreadResponse],
+    summary="Search chat threads",
+    responses={
+        200: {"description": "Search results retrieved"},
+        401: {"description": "Not authenticated"}
+    }
+)
+async def search_threads(
+    query: str,
+    skip: int = 0,
+    limit: int = 50,
+    current_user = Depends(auth_service.validate_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Search through chat threads by title or content.
+    
+    Parameters:
+    - **query**: Search term
+    - **skip**: Number of results to skip
+    - **limit**: Maximum number of results to return
+    """
+    return await chat_service.search_threads(
+        db=db,
+        user_id=current_user.user_id,
+        query=query,
+        skip=skip,
+        limit=limit
+    )
