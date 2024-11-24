@@ -2,7 +2,8 @@ from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from datetime import datetime
 from typing import Optional, List
 
-# User Schemas
+##### USER SCHEMA #####
+
 class UserBase(BaseModel):
     """Base schema for user data"""
     email: EmailStr = Field(description="User's email address")
@@ -22,7 +23,9 @@ class UserResponse(UserBase):
 
     model_config = ConfigDict(from_attributes=True)
 
-# Auth Schemas
+
+##### AUTH SCHEMA #####
+
 class Token(BaseModel):
     """Schema for authentication tokens"""
     access_token: str = Field(description="JWT access token")
@@ -35,7 +38,9 @@ class TokenData(BaseModel):
     user_id: Optional[int] = Field(default=None, description="User's ID from token")
     username: Optional[str] = Field(default=None, description="User's username")
 
-# Topic Schemas
+
+##### TOPIC SCHEMA #####
+
 class TopicCreate(BaseModel):
     """Schema for creating a new topic"""
     topic_name: str = Field(
@@ -81,7 +86,8 @@ class TopicSearchResponse(TopicResponse):
 class TopicSuggestionResponse(BaseModel):
     suggested_name: str
 
-# Entry Schemas
+
+##### ENTRY SCHEMA #####
 class EntryCreate(BaseModel):
     """Schema for creating a new entry"""
     content: str = Field(
@@ -118,41 +124,8 @@ class EntryList(BaseModel):
     items: List[EntryResponse]
     total: int = Field(ge=0)
 
-# Chat Schemas
-class ChatMessageCreate(BaseModel):
-    """Schema for creating a new chat message"""
-    message_text: str = Field(
-        min_length=1,
-        description="The text content of the message",
-        example="What can you tell me about neural networks?"
-    )
-    topic_id: Optional[int] = Field(
-        default=None,
-        description="ID of the topic this message belongs to",
-        example=1
-    )
-    message_type: str = Field(
-        description="Type of message (user/assistant/system)",
-        example="user"
-    )
 
-class ChatMessageResponse(BaseModel):
-    """Schema for chat message responses"""
-    message_id: int = Field(description="Unique identifier for the message")
-    user_id: int = Field(description="ID of the user who sent/received this message")
-    topic_id: Optional[int] = Field(description="ID of the associated topic, if any")
-    message_text: str = Field(description="The content of the message")
-    message_type: str = Field(description="Type of message (user/assistant/system)")
-    timestamp: datetime = Field(description="When the message was created")
-
-    model_config = ConfigDict(from_attributes=True)
-
-class ChatMessageList(BaseModel):
-    """Schema for paginated chat message lists"""
-    items: List[ChatMessageResponse]
-    total: int = Field(ge=0)
-
-# Add these new schemas to schemas.py
+##### AUTO-CATEGORIZATION SCHEMA #####
 
 class ProposedEntry(BaseModel):
     """Schema for an entry with its proposed categorization"""
@@ -215,7 +188,6 @@ class EntryProposal(BaseModel):
 class QuickCategorizeResponse(BaseModel):
     proposals: List[EntryProposal]
 
-# Add these new schema classes
 
 class TopicSuggestion(BaseModel):
     """Topic suggestion with confidence"""
@@ -272,3 +244,56 @@ class QuickCategorizeUncategorizedResponse(BaseModel):
     new_topic_proposals: List[NewTopicProposal]
     unassigned_entries: List[UnassignedEntry]
     metadata: CategoryMetadata
+
+
+    
+##### CHAT SCHEMA #####
+class ChatMessageCreate(BaseModel):
+    """Schema for creating a new chat message"""
+    message_text: str = Field(
+        min_length=1,
+        description="The text content of the message",
+        example="What can you tell me about neural networks?"
+    )
+    topic_id: Optional[int] = Field(
+        default=None,
+        description="ID of the topic this message belongs to",
+        example=1
+    )
+    message_type: str = Field(
+        description="Type of message (user/assistant/system)",
+        example="user"
+    )
+
+class ChatMessageResponse(BaseModel):
+    """Schema for chat message responses"""
+    message_id: int = Field(description="Unique identifier for the message")
+    user_id: int = Field(description="ID of the user who sent/received this message")
+    topic_id: Optional[int] = Field(description="ID of the associated topic, if any")
+    message_text: str = Field(description="The content of the message")
+    message_type: str = Field(description="Type of message (user/assistant/system)")
+    timestamp: datetime = Field(description="When the message was created")
+
+    model_config = ConfigDict(from_attributes=True)
+
+class ChatMessageList(BaseModel):
+    """Schema for paginated chat message lists"""
+    items: List[ChatMessageResponse]
+    total: int = Field(ge=0)
+
+class ChatThreadCreate(BaseModel):
+    topic_id: Optional[int] = None
+    title: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+class ChatThreadResponse(BaseModel):
+    thread_id: int
+    user_id: int
+    topic_id: Optional[int]
+    title: str
+    created_at: datetime
+    last_message_at: datetime
+    status: str
+
+    model_config = ConfigDict(from_attributes=True)

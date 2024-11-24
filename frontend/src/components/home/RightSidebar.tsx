@@ -22,7 +22,7 @@ export default function RightSidebar() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         if (!inputMessage.trim()) return;
 
         const userMessage: Message = {
@@ -69,11 +69,10 @@ export default function RightSidebar() {
                                 className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                             >
                                 <div
-                                    className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                                        message.sender === 'user'
+                                    className={`max-w-[80%] rounded-lg px-4 py-2 ${message.sender === 'user'
                                             ? 'bg-blue-500 text-white'
                                             : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
-                                    }`}
+                                        }`}
                                 >
                                     <p>{message.content}</p>
                                     <span className="text-xs opacity-70 mt-1 block">
