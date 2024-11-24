@@ -347,6 +347,43 @@ async def get_topic_stats_tool(db: Session, user_id: int, topic_id: int) -> Dict
         "latest_entry_date": latest_entry.creation_date if latest_entry else None
     }
 
+async def get_all_topics_tool(db: Session, user_id: int) -> Dict[str, Any]:
+    """Get all topics for the user with their statistics"""
+    topics = db.query(Topic).filter(
+        Topic.user_id == user_id
+    ).order_by(Topic.creation_date.desc()).all()
+    
+    result = {
+        "topics": []
+    }
+    
+    for topic in topics:
+        # Get entry count for this topic
+        entry_count = db.query(Entry).filter(
+            Entry.topic_id == topic.topic_id,
+            Entry.user_id == user_id
+        ).count()
+        
+        # Get latest entry
+        latest_entry = db.query(Entry).filter(
+            Entry.topic_id == topic.topic_id,
+            Entry.user_id == user_id
+        ).order_by(Entry.creation_date.desc()).first()
+        
+        result["topics"].append({
+            "topic_id": topic.topic_id,
+            "topic_name": topic.topic_name,
+            "creation_date": topic.creation_date.isoformat() if topic.creation_date else None,
+            "entry_count": entry_count,
+            "latest_entry_date": latest_entry.creation_date.isoformat() if latest_entry else None,
+            "latest_entry_preview": latest_entry.content[:100] if latest_entry else None
+        })
+    
+    logger.info(f"Retrieved {len(result['topics'])} topics for user {user_id}")
+    logger.debug(f"Topics: {json.dumps(result, indent=2)}")
+    
+    return result
+
 async def process_message(
     db: Session,
     user_id: int,
@@ -401,6 +438,10 @@ async def process_message(
             "get_topic_stats": {
                 "description": get_topic_stats_tool.__doc__,
                 "required_params": ["topic_id"]
+            },
+            "get_all_topics": {
+                "description": get_all_topics_tool.__doc__,
+                "required_params": []
             }
         }
         logger.debug(f"Available tools: {json.dumps(available_tools, indent=2)}")
@@ -426,6 +467,7 @@ async def process_message(
             "get_entries": get_entries_tool,
             "search_entries": search_entries_tool,
             "get_topic_stats": get_topic_stats_tool,
+            "get_all_topics": get_all_topics_tool,
         }
         
         for tool_name, tool_params in tool_requests.items():

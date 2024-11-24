@@ -568,42 +568,38 @@ Thread info:
 
 User message: {message}
 
+For topic analysis requests:
+- Use get_all_topics to get an overview of all topics
+- Use get_topic for details about specific topics
+- Use get_topic_stats for statistics about specific topics
+- Only use search_entries if specifically asked about entry content
+
 For each tool you want to use, you must provide all required parameters:
-- search_entries requires a 'query' parameter that should capture the key concepts to search for, not just single words
+- search_entries requires a 'query' parameter that should capture the key concepts
 - get_topic requires a 'topic_id' parameter
 - get_entries requires a 'topic_id' parameter
 - get_topic_stats requires a 'topic_id' parameter
-
-When constructing search queries:
-- Use multiple relevant keywords
-- Focus on the core concepts, not just individual words
-- Consider synonyms and related terms
-- Make queries that will find relevant content, not just exact matches
-
-Example search queries:
-- "career goals achievements professional growth"
-- "family relationships marriage children"
-- "health fitness exercise nutrition"
-- "learning education study knowledge"
+- get_all_topics requires no parameters
 
 IMPORTANT: Return ONLY a JSON object, with no additional text or explanation.
 The JSON object should map tool names to their parameters. Only include tools if you can provide all required parameters.
 
-Example response formats:
+Example responses for topic analysis:
+{{
+    "get_all_topics": {{}}
+}}
+
+or 
+
+{{
+    "get_topic": {{"topic_id": 101}},
+    "get_topic_stats": {{"topic_id": 101}}
+}}
+
+Example responses for content search:
 {{
     "search_entries": {{"query": "career goals achievements professional"}}
 }}
-
-or
-
-{{
-    "get_topic": {{"topic_id": 123}},
-    "get_entries": {{"topic_id": 123, "limit": 5}}
-}}
-
-or
-
-{{}}
 
 Response (JSON only):"""
 
