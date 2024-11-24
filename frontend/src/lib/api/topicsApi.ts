@@ -80,12 +80,21 @@ export interface QuickCategorizeUncategorizedResponse {
 
 export const UNCATEGORIZED_TOPIC_ID = -1;
 
-export interface UncategorizedTopic extends Omit<Topic, 'user_id' | 'creation_date'> {
-    topic_id: typeof UNCATEGORIZED_TOPIC_ID;
-    topic_name: 'Uncategorized';
-    is_uncategorized: true;
-    entry_count?: number;
+export interface UncategorizedTopic {
+    topic_id: number;
+    topic_name: string;
+    user_id: number;
+    created_at: string;
+    entry_count: number;
 }
+
+export const UncategorizedTopicValue: UncategorizedTopic = {
+    topic_id: UNCATEGORIZED_TOPIC_ID,
+    topic_name: "Uncategorized",
+    user_id: 0,
+    created_at: new Date().toISOString(),
+    entry_count: 0
+};
 
 // Helper function to identify uncategorized topic
 export const isUncategorizedTopic = (topic: Topic | UncategorizedTopic): topic is UncategorizedTopic => {

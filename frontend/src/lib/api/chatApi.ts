@@ -46,10 +46,10 @@ export const chatApi = {
         return response.data;
     },
 
-    getThreads: async (params: { 
-        status?: string; 
-        skip?: number; 
-        limit?: number; 
+    getThreads: async (params: {
+        status?: string;
+        skip?: number;
+        limit?: number;
     } = {}): Promise<ChatThread[]> => {
         const response = await api.get('/api/chat/threads', { params });
         return response.data;
@@ -103,8 +103,8 @@ export const chatApi = {
 };
 
 // Helper functions
-export const isThreadActive = (thread: ChatThread): boolean => 
+export const isThreadActive = (thread: ChatThread): boolean =>
     thread.status === 'active';
 
-export const getThreadTitle = (thread: ChatThread): string => 
+export const getThreadTitle = (thread: ChatThread): string =>
     thread.title || 'New Chat';

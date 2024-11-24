@@ -1,16 +1,20 @@
 import { useState, useEffect, useRef } from 'react';
 import { chatApi, ChatMessage, ChatThread } from '../../lib/api/chatApi';
+import { UNCATEGORIZED_TOPIC_ID, Topic, UncategorizedTopic } from '../../lib/api/topicsApi'
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { Components } from 'react-markdown';
 import type { CSSProperties } from 'react';
-import { useTopicContext } from '../../context/TopicContext';
 
+interface RightSidebarProps {
+    currentTopic: Topic | UncategorizedTopic | null;
+}
 
-export default function RightSidebar() {
-    const { selectedTopic } = useTopicContext();
+export default function RightSidebar({ currentTopic }: RightSidebarProps) {
+    console.log('Current Topic in RightSidebar:', currentTopic);
+
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [currentThread, setCurrentThread] = useState<ChatThread | null>(null);
     const [inputMessage, setInputMessage] = useState('');
@@ -72,8 +76,8 @@ export default function RightSidebar() {
             let response: ChatMessage;
             const messageData = {
                 content: userMessage,
-                role: 'user',
-                topic_id: typeof selectedTopic === 'number' ? selectedTopic : null
+                role: 'user' as const,
+                topic_id: currentTopic?.topic_id || null
             };
 
             if (!currentThread) {
@@ -136,12 +140,12 @@ export default function RightSidebar() {
     };
 
     const getPlaceholderText = () => {
-        if (selectedTopic === null) {
+        if (!currentTopic) {
             return "Ask about any topic...";
-        } else if (selectedTopic === 'uncategorized') {
+        } else if (currentTopic.topic_id === UNCATEGORIZED_TOPIC_ID) {
             return "Ask about uncategorized entries...";
         } else {
-            return "Ask about this topic...";
+            return `Ask about ${currentTopic.topic_name}...`;
         }
     };
 
@@ -150,9 +154,9 @@ export default function RightSidebar() {
             {/* Header */}
             <div className="shrink-0 p-4 border-b border-gray-200 dark:border-gray-700">
                 <h2 className="text-lg font-semibold dark:text-white">
-                    {selectedTopic === null ? 'All Topics' :
-                        selectedTopic === 'uncategorized' ? 'Uncategorized Entries' :
-                            'Topic Chat'}
+                    {!currentTopic ? 'All Topics' :
+                        currentTopic.topic_id === UNCATEGORIZED_TOPIC_ID ? 'Uncategorized Entries' :
+                            currentTopic.topic_name}
                 </h2>
             </div>
 

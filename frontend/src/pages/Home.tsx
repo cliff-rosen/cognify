@@ -5,12 +5,12 @@ import CenterWorkspace from '../components/home/CenterWorkspace'
 import RightSidebar from '../components/home/RightSidebar'
 import { useState, useRef } from 'react'
 import { Entry } from '../lib/api/entriesApi'
-import { Topic, UNCATEGORIZED_TOPIC_ID, UncategorizedTopic, topicsApi } from '../lib/api/topicsApi'
+import { Topic, UNCATEGORIZED_TOPIC_ID, UncategorizedTopic, UncategorizedTopicValue } from '../lib/api/topicsApi'
 import LoginForm from '../components/auth/LoginForm'
 
 export default function HomeComponent() {
     const { isAuthenticated, login, register, error } = useAuth()
-    const [topics, setTopics] = useState<(Topic | UncategorizedTopic)[]>([])
+    const [topics, setTopics] = useState<Topic[]>([])
     const [selectedTopicId, setSelectedTopicId] = useState<number | null>(null)
     const centerWorkspaceRef = useRef<{ refreshEntries: () => void } | null>(null)
     const [showRightSidebar, setShowRightSidebar] = useState(true)
@@ -35,6 +35,12 @@ export default function HomeComponent() {
         } catch (error) {
             console.error('Error refreshing topics:', error);
         }
+    };
+
+    const getCurrentTopic = () => {
+        if (selectedTopicId === null) return null;
+        if (selectedTopicId === UNCATEGORIZED_TOPIC_ID) return UncategorizedTopicValue;
+        return topics.find(t => t.topic_id === selectedTopicId) || null;
     };
 
     if (!isAuthenticated) {
@@ -86,11 +92,11 @@ export default function HomeComponent() {
                         />
                     </div>
 
-                    {/* Toggle Button - Fix the container width */}
-                    <div className="w-[1px] flex-none border-l border-gray-200 dark:border-gray-700 flex items-center">
+                    {/* Toggle Button - Fixed width container */}
+                    <div className="w-6 flex-none flex items-center justify-center">
                         <button
                             onClick={() => setShowRightSidebar(!showRightSidebar)}
-                            className="p-1 -ml-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full shadow"
+                            className="p-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full shadow hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                             title={showRightSidebar ? "Hide AI Assistant" : "Show AI Assistant"}
                         >
                             <svg
@@ -115,7 +121,7 @@ export default function HomeComponent() {
                     {/* Right Sidebar */}
                     {showRightSidebar && (
                         <aside className="w-[500px] flex-shrink-0 border-l border-gray-200 dark:border-gray-700 overflow-y-auto h-full">
-                            <RightSidebar />
+                            <RightSidebar currentTopic={getCurrentTopic()} />
                         </aside>
                     )}
                 </main>
