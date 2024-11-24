@@ -6,9 +6,11 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { Components } from 'react-markdown';
 import type { CSSProperties } from 'react';
+import { useTopicContext } from '../../context/TopicContext';
 
 
 export default function RightSidebar() {
+    const { selectedTopic } = useTopicContext();
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [currentThread, setCurrentThread] = useState<ChatThread | null>(null);
     const [inputMessage, setInputMessage] = useState('');
@@ -46,14 +48,12 @@ export default function RightSidebar() {
 
         setIsLoading(true);
         const userMessage = inputMessage;
-        setInputMessage(''); // Clear input immediately
+        setInputMessage('');
 
-        // Reset textarea height
         if (textareaRef.current) {
             textareaRef.current.style.height = 'auto';
         }
 
-        // Add user message to UI immediately
         const tempUserMessage: Partial<ChatMessage> = {
             content: userMessage,
             role: 'user',
@@ -61,7 +61,6 @@ export default function RightSidebar() {
         };
         setMessages(prev => [...prev, tempUserMessage as ChatMessage]);
 
-        // Add loading message
         const tempLoadingMessage: Partial<ChatMessage> = {
             content: '...',
             role: 'assistant',
@@ -71,15 +70,18 @@ export default function RightSidebar() {
 
         try {
             let response: ChatMessage;
+            const messageData = {
+                content: userMessage,
+                role: 'user',
+                topic_id: typeof selectedTopic === 'number' ? selectedTopic : null
+            };
+
             if (!currentThread) {
-                response = await chatApi.sendMessageNewThread({
-                    content: userMessage,
-                    role: 'user'
-                });
+                response = await chatApi.sendMessageNewThread(messageData);
                 const newThread: ChatThread = {
                     thread_id: response.thread_id,
                     user_id: response.user_id,
-                    topic_id: null,
+                    topic_id: response.topic_id,
                     title: 'New Chat',
                     created_at: response.timestamp,
                     last_message_at: response.timestamp,
@@ -87,13 +89,9 @@ export default function RightSidebar() {
                 };
                 setCurrentThread(newThread);
             } else {
-                response = await chatApi.sendMessage(currentThread.thread_id, {
-                    content: userMessage,
-                    role: 'user'
-                });
+                response = await chatApi.sendMessage(currentThread.thread_id, messageData);
             }
 
-            // Replace temporary messages with actual response
             setMessages(prev => {
                 const withoutTemp = prev.slice(0, -2);
                 return [...withoutTemp,
@@ -137,11 +135,25 @@ export default function RightSidebar() {
         }
     };
 
+    const getPlaceholderText = () => {
+        if (selectedTopic === null) {
+            return "Ask about any topic...";
+        } else if (selectedTopic === 'uncategorized') {
+            return "Ask about uncategorized entries...";
+        } else {
+            return "Ask about this topic...";
+        }
+    };
+
     return (
         <div className="h-full flex flex-col bg-white dark:bg-gray-800">
             {/* Header */}
             <div className="shrink-0 p-4 border-b border-gray-200 dark:border-gray-700">
-                <h2 className="text-lg font-semibold dark:text-white">AI Assistant</h2>
+                <h2 className="text-lg font-semibold dark:text-white">
+                    {selectedTopic === null ? 'All Topics' :
+                        selectedTopic === 'uncategorized' ? 'Uncategorized Entries' :
+                            'Topic Chat'}
+                </h2>
             </div>
 
             {/* Messages Container */}
@@ -205,7 +217,7 @@ export default function RightSidebar() {
                             adjustTextareaHeight();
                         }}
                         onKeyDown={handleKeyDown}
-                        placeholder="Type your message... (Shift + Enter for new line)"
+                        placeholder={getPlaceholderText()}
                         disabled={isLoading}
                         className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 
                                  px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 

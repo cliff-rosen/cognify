@@ -86,8 +86,8 @@ export default function HomeComponent() {
                         />
                     </div>
 
-                    {/* Toggle Button */}
-                    <div className="flex-none border-l border-gray-200 dark:border-gray-700 flex items-center">
+                    {/* Toggle Button - Fix the container width */}
+                    <div className="w-[1px] flex-none border-l border-gray-200 dark:border-gray-700 flex items-center">
                         <button
                             onClick={() => setShowRightSidebar(!showRightSidebar)}
                             className="p-1 -ml-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full shadow"
@@ -112,9 +112,9 @@ export default function HomeComponent() {
                         </button>
                     </div>
 
-                    {/* Right Sidebar with conditional rendering */}
+                    {/* Right Sidebar */}
                     {showRightSidebar && (
-                        <aside className="w-[500px] flex-shrink-0 border-l border-gray-200 dark:border-gray-700">
+                        <aside className="w-[500px] flex-shrink-0 border-l border-gray-200 dark:border-gray-700 overflow-y-auto h-full">
                             <RightSidebar />
                         </aside>
                     )}

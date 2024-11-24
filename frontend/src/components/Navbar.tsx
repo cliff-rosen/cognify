@@ -13,9 +13,9 @@ export default function Navbar() {
                 <div className="flex justify-between h-16">
                     <div className="flex items-center">
                         <Link to="/" className="flex items-center gap-2">
-                            <img 
-                                src="/cognify-icon.svg" 
-                                alt="Cognify Logo" 
+                            <img
+                                src="/cognify-icon.svg"
+                                alt="Cognify Logo"
                                 className="h-8 w-8"
                             />
                             <span className="text-xl font-bold text-gray-800 dark:text-white">
@@ -49,14 +49,8 @@ export default function Navbar() {
                             >
                                 Logout
                             </button>
-                        ) : (
-                            <Link
-                                to="/login"
-                                className="px-4 py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
-                            >
-                                Login
-                            </Link>
-                        )}
+                        ) : <div />
+                        }
                     </div>
                 </div>
             </div>
