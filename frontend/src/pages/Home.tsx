@@ -7,6 +7,7 @@ import { useState, useRef } from 'react'
 import { Entry } from '../lib/api/entriesApi'
 import { Topic, UNCATEGORIZED_TOPIC_ID, UncategorizedTopic, UncategorizedTopicValue } from '../lib/api/topicsApi'
 import LoginForm from '../components/auth/LoginForm'
+import { topicsApi } from '../lib/api/topicsApi'
 
 export default function HomeComponent() {
     const { isAuthenticated, login, register, error } = useAuth()
@@ -31,7 +32,7 @@ export default function HomeComponent() {
     const refreshTopics = async () => {
         try {
             const fetchedTopics = await topicsApi.getTopics();
-            setTopics(fetchedTopics);
+            setTopics(fetchedTopics as Topic[]);
         } catch (error) {
             console.error('Error refreshing topics:', error);
         }
@@ -72,7 +73,9 @@ export default function HomeComponent() {
                         onSelectTopic={setSelectedTopicId}
                         selectedTopicId={selectedTopicId}
                         topics={topics}
-                        onTopicsChange={setTopics}
+                        onTopicsChange={(newTopics) => {
+                            setTopics(newTopics as Topic[]);
+                        }}
                         onEntryMoved={() => {
                             centerWorkspaceRef.current?.refreshEntries()
                         }}
