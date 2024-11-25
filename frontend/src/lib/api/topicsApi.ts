@@ -1,6 +1,6 @@
 import { api, handleApiError, formatTimestamp } from './index'
 
-export const UNCATEGORIZED_TOPIC_ID = null;
+export const UNCATEGORIZED_TOPIC_ID = 0;
 export const ALL_TOPICS_TOPIC_ID = -1;
 
 export interface Topic {
@@ -82,7 +82,15 @@ export interface QuickCategorizeUncategorizedResponse {
 }
 
 export interface UncategorizedTopic {
-    topic_id: null;
+    topic_id: 0;
+    topic_name: string;
+    user_id: number;
+    created_at: string;
+    entry_count: number;
+}
+
+export interface AllTopicsTopic {
+    topic_id: -1;
     topic_name: string;
     user_id: number;
     created_at: string;
@@ -96,6 +104,15 @@ export const UncategorizedTopicValue: UncategorizedTopic = {
     created_at: new Date().toISOString(),
     entry_count: 0
 };
+
+export const AllTopicsTopicValue: AllTopicsTopic = {
+    topic_id: ALL_TOPICS_TOPIC_ID,
+    topic_name: "All Topics",
+    user_id: 0,
+    created_at: new Date().toISOString(),
+    entry_count: 0
+};
+
 
 // Helper function to identify uncategorized topic
 export const isUncategorizedTopic = (topic: Topic | UncategorizedTopic): topic is UncategorizedTopic => {

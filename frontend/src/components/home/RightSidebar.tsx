@@ -4,7 +4,8 @@ import {
     UNCATEGORIZED_TOPIC_ID,
     ALL_TOPICS_TOPIC_ID,
     Topic,
-    UncategorizedTopic
+    UncategorizedTopic,
+    AllTopicsTopic
 } from '../../lib/api/topicsApi';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -14,17 +15,11 @@ import type { Components } from 'react-markdown';
 import type { CSSProperties } from 'react';
 
 interface RightSidebarProps {
-    currentTopic: number | Topic | UncategorizedTopic | null;
+    currentTopic: Topic | UncategorizedTopic | AllTopicsTopic;
 }
 
-interface ThreadDropdownItemProps {
-    thread: ChatThread;
-    isSelected: boolean;
-    onClick: () => void;
-}
 
 export default function RightSidebar({ currentTopic }: RightSidebarProps) {
-    console.log('Current Topic in RightSidebar:', currentTopic);
 
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [currentThread, setCurrentThread] = useState<ChatThread | null>(null);
@@ -39,6 +34,7 @@ export default function RightSidebar({ currentTopic }: RightSidebarProps) {
     const [editTitle, setEditTitle] = useState('');
     const editInputRef = useRef<HTMLInputElement>(null);
 
+    console.log('Current topic in RightSidebar:', currentTopic);
     // Add click outside handler for dropdown
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -188,7 +184,7 @@ export default function RightSidebar({ currentTopic }: RightSidebarProps) {
     };
 
     const getPlaceholderText = () => {
-        if (!currentTopic) {
+        if (currentTopic.topic_id === ALL_TOPICS_TOPIC_ID) {
             return "Ask about any topic...";
         } else if (currentTopic.topic_id === UNCATEGORIZED_TOPIC_ID) {
             return "Ask about uncategorized entries...";
@@ -204,9 +200,9 @@ export default function RightSidebar({ currentTopic }: RightSidebarProps) {
                 let topicId: number | null;
 
                 if (!currentTopic) {
-                    topicId = ALL_TOPICS_TOPIC_ID;  // 0 for all topics
+                    topicId = ALL_TOPICS_TOPIC_ID;  // -1 for all topics
                 } else if (currentTopic.topic_id === UNCATEGORIZED_TOPIC_ID) {
-                    topicId = UNCATEGORIZED_TOPIC_ID;  // -1 for uncategorized
+                    topicId = UNCATEGORIZED_TOPIC_ID;  // 0 for uncategorized
                 } else {
                     topicId = currentTopic.topic_id;  // specific topic id
                 }
@@ -217,15 +213,16 @@ export default function RightSidebar({ currentTopic }: RightSidebarProps) {
                 });
                 setChatThreads(threads);
 
-                // If threads exist and no thread is currently selected, select the most recent one
-                if (threads.length > 0 && !currentThread) {
+                // If threads exist, automatically select and load the most recent one
+                if (threads.length > 0) {
                     const mostRecentThread = threads[0]; // Assuming threads are sorted by last_message_at
                     handleThreadSelect(mostRecentThread);
-                } else if (threads.length === 0) {
-                    // Clear current thread if no threads exist for this topic
+                } else {
+                    // Clear current thread and messages if no threads exist
                     setCurrentThread(null);
                     setMessages([]);
                 }
+
             } catch (error) {
                 console.error('Error fetching chat threads:', error);
             } finally {
@@ -233,8 +230,9 @@ export default function RightSidebar({ currentTopic }: RightSidebarProps) {
             }
         };
 
+        console.log('Fetching chat threads for topic:', currentTopic);
         fetchChatThreads();
-    }, [currentTopic]);
+    }, [currentTopic.topic_id]);
 
     const handleThreadSelect = async (thread: ChatThread) => {
         setCurrentThread(thread);
@@ -265,9 +263,6 @@ export default function RightSidebar({ currentTopic }: RightSidebarProps) {
     };
 
     const handleNewChat = () => {
-        const topic_id = !currentTopic ? ALL_TOPICS_CHAT_TOPIC_ID :  // -1 for all topics view
-            currentTopic.topic_id === UNCATEGORIZED_TOPIC_ID ? null :  // null for uncategorized
-                currentTopic.topic_id;  // specific topic id
 
         setCurrentThread(null);
         setMessages([]);
@@ -306,8 +301,8 @@ export default function RightSidebar({ currentTopic }: RightSidebarProps) {
             <div className="shrink-0 p-4 border-b border-gray-200 dark:border-gray-700">
                 <div className="flex flex-col gap-3">
                     <h2 className="text-lg font-semibold dark:text-white">
-                        {!currentTopic ? 'All Topics' :
-                            currentTopic.topic_id === UNCATEGORIZED_TOPIC_ID ? 'Uncategorized Entries' :
+                        {currentTopic.topic_id === -1 ? 'All Topics' :
+                            currentTopic.topic_id === 0 ? 'Uncategorized Entries' :
                                 currentTopic.topic_name}
                     </h2>
                     <div className="flex gap-2">
@@ -463,7 +458,7 @@ export default function RightSidebar({ currentTopic }: RightSidebarProps) {
                     {messages.length === 0 ? (
                         <div className="text-center text-gray-500 dark:text-gray-400 mt-8">
                             <p>No messages yet.</p>
-                            <p className="text-sm mt-2">Ask me anything about your entries and topics!</p>
+                            <p className="text-sm mt-2">{getPlaceholderText()}</p>
                         </div>
                     ) : (
                         messages.map((message, index) => (

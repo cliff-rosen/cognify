@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Topic, topicsApi, UncategorizedTopic, isUncategorizedTopic, ALL_TOPICS_TOPIC_ID, UNCATEGORIZED_TOPIC_ID } from '../../lib/api/topicsApi'
+import { Topic, topicsApi, UncategorizedTopic, isUncategorizedTopic, ALL_TOPICS_TOPIC_ID } from '../../lib/api/topicsApi'
 import { DragEvent } from 'react'
 import { Entry, entriesApi } from '../../lib/api/entriesApi'
 

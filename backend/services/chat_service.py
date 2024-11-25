@@ -38,7 +38,7 @@ async def create_thread(
     # Handle topic_id cases
     topic_id = ALL_TOPICS  # Default to all topics view
     if hasattr(thread, 'topic_id'):  # Only process if topic_id was specified in request
-        if thread.topic_id is None:  # Explicitly set to null = uncategorized
+        if thread.topic_id == 0 or thread.topic_id is None:  # Explicitly set to null = uncategorized
             topic_id = None
         elif thread.topic_id > 0:  # Specific topic
             # Verify topic exists and belongs to user
@@ -56,7 +56,7 @@ async def create_thread(
     db_thread = ChatThread(
         user_id=user_id,
         topic_id=topic_id,  # Will be -1 for all topics, null for uncategorized
-        title=thread.title or "New Chat",
+        title=thread.title or "Untitled Chat",
         created_at=datetime.utcnow(),
         last_message_at=datetime.utcnow(),
         status="active"
@@ -87,7 +87,7 @@ async def get_user_threads(
         query = query.filter(ChatThread.status == status)
     
     # Handle topic filtering
-    if topic_id in (None, "null"):  # Uncategorized threads
+    if topic_id in (None, "null", 0):  # Uncategorized threads
         query = query.filter(ChatThread.topic_id.is_(None))
     elif topic_id == ALL_TOPICS:  # All topics view
         query = query.filter(ChatThread.topic_id == ALL_TOPICS)
