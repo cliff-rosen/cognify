@@ -74,7 +74,7 @@ const TopBar: React.FC<TopBarProps> = ({ onEntryAdded, onTopicCreated, onTopicsC
             setSelectedTopicName('')
             setSuggestions([])
             setShowSuggestions(false)
-            
+
             if (onTopicsChanged) {
                 onTopicsChanged()
             }
@@ -219,7 +219,7 @@ const TopBar: React.FC<TopBarProps> = ({ onEntryAdded, onTopicCreated, onTopicsC
                                                 {Math.round(topic.score * 100)}%
                                             </span>
                                         )}
-                                        
+
                                         {/* Add new topic indicator */}
                                         {topic.is_new_topic && (
                                             <span className="text-xs text-blue-600 dark:text-blue-400">

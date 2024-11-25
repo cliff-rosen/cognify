@@ -95,8 +95,11 @@ async def update_entry(db: Session, entry_id: int, entry_update: EntryUpdate, us
             
         # Handle topic_id update
         if hasattr(entry_update, 'topic_id'):  # Check if topic_id is included in update
-            # If topic_id is None, it means move to uncategorized
-            if entry_update.topic_id is not None:
+            # If topic_id is 0 or None, move to uncategorized
+            if entry_update.topic_id == 0 or entry_update.topic_id is None:
+                db_entry.topic_id = None
+                logger.info(f"Moved entry {entry_id} to uncategorized")
+            else:
                 # Verify the new topic exists and belongs to the user
                 topic = db.query(Topic).filter(
                     Topic.topic_id == entry_update.topic_id,
@@ -107,10 +110,9 @@ async def update_entry(db: Session, entry_id: int, entry_update: EntryUpdate, us
                         status_code=status.HTTP_404_NOT_FOUND,
                         detail="Target topic not found or does not belong to user"
                     )
-            
-            # Update topic_id (can be None for uncategorized)
-            db_entry.topic_id = entry_update.topic_id
-            logger.info(f"Moved entry {entry_id} to topic {entry_update.topic_id if entry_update.topic_id is not None else 'uncategorized'}")
+                # Update topic_id
+                db_entry.topic_id = entry_update.topic_id
+                logger.info(f"Moved entry {entry_id} to topic {entry_update.topic_id}")
             
         # Update content if provided
         if hasattr(entry_update, 'content') and entry_update.content is not None:

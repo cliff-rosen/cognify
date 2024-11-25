@@ -15,11 +15,28 @@ import type { Components } from 'react-markdown';
 import type { CSSProperties } from 'react';
 
 interface RightSidebarProps {
-    currentTopic: Topic | UncategorizedTopic | AllTopicsTopic;
+    currentTopic: Topic | UncategorizedTopic | AllTopicsTopic | null;
 }
 
 
 export default function RightSidebar({ currentTopic }: RightSidebarProps) {
+
+    if (!currentTopic) {
+        return (
+            <div className="h-full flex flex-col bg-white dark:bg-gray-800">
+                <div className="shrink-0 p-4 border-b border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center justify-between gap-3">
+                        <h2 className="text-lg font-semibold dark:text-white">
+                            Select a Topic
+                        </h2>
+                    </div>
+                </div>
+                <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
+                    Please select a topic from the sidebar
+                </div>
+            </div>
+        );
+    }
 
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [currentThread, setCurrentThread] = useState<ChatThread | null>(null);
@@ -232,7 +249,7 @@ export default function RightSidebar({ currentTopic }: RightSidebarProps) {
 
         console.log('Fetching chat threads for topic:', currentTopic);
         fetchChatThreads();
-    }, [currentTopic.topic_id]);
+    }, [currentTopic?.topic_id]);
 
     const handleThreadSelect = async (thread: ChatThread) => {
         setCurrentThread(thread);

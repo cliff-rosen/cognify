@@ -105,7 +105,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
             await topicsApi.deleteTopic(topic.topic_id)
             onTopicsChange(topics.filter(t => t.topic_id !== topic.topic_id))
             if (selectedTopicId === topic.topic_id) {
-                onSelectTopic(null)
+                onSelectTopic(ALL_TOPICS_TOPIC_ID)
             }
             setTopicToDelete(null)
         } catch (error) {
@@ -115,18 +115,22 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
 
     const handleDragOver = (e: DragEvent<HTMLDivElement>, topicId: number | null) => {
         if (!e.dataTransfer.types.includes('application/json')) {
-            return
+            return;
+        }
+
+        if (topicId === ALL_TOPICS_TOPIC_ID) {
+            return;
         }
 
         if (draggedEntryRef.current?.topic_id === topicId) {
-            return
+            return;
         }
 
-        e.preventDefault()
+        e.preventDefault();
         if (e.currentTarget.classList) {
-            e.currentTarget.classList.add('bg-blue-50', 'dark:bg-blue-900/30')
+            e.currentTarget.classList.add('bg-blue-50', 'dark:bg-blue-900/30');
         }
-    }
+    };
 
     const handleDragLeave = (e: DragEvent<HTMLDivElement>) => {
         if (e.currentTarget.classList) {
@@ -136,6 +140,10 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
 
     const handleDrop = async (e: DragEvent<HTMLDivElement>, topicId: number | null) => {
         e.preventDefault();
+
+        if (topicId === ALL_TOPICS_TOPIC_ID) {
+            return;
+        }
 
         if (e.currentTarget.classList) {
             e.currentTarget.classList.remove('bg-blue-50', 'dark:bg-blue-900/30');
