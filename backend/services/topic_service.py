@@ -35,6 +35,7 @@ async def get_topics(db: Session, user_id: int):
     logger.info(f"Getting topics for user {user_id}")
     
     # Get topics with entry counts using a subquery
+    logger.info(f"Getting entry counts")
     entry_counts = (
         db.query(
             Entry.topic_id, 
@@ -46,6 +47,7 @@ async def get_topics(db: Session, user_id: int):
     )
     
     # Get topics with their counts
+    logger.info(f"Getting topics with counts")
     topics = (
         db.query(Topic, func.coalesce(entry_counts.c.entry_count, 0).label('entry_count'))
         .outerjoin(entry_counts, Topic.topic_id == entry_counts.c.topic_id)
@@ -64,8 +66,9 @@ async def get_topics(db: Session, user_id: int):
     result = []
     
     # Add uncategorized "topic" first
+    logger.info(f"Adding uncategorized topic with count {uncategorized_count}")
     result.append(TopicResponse(
-        topic_id=-1,  # UNCATEGORIZED_TOPIC_ID
+        topic_id=0,  # UNCATEGORIZED_TOPIC_ID
         topic_name="Uncategorized",
         user_id=user_id,
         creation_date=datetime.utcnow(),

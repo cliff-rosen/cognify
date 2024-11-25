@@ -1,11 +1,15 @@
 from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Enum, TIMESTAMP
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, foreign, remote
 from datetime import datetime
 from typing import Optional
 from sqlalchemy.sql import text
+from sqlalchemy.sql.schema import CheckConstraint, ForeignKeyConstraint
 
 Base = declarative_base()
+
+# Constants
+ALL_TOPICS = -1  # Special value for chat threads to indicate "all topics" view
 
 class User(Base):
     __tablename__ = "users"
@@ -32,7 +36,6 @@ class Topic(Base):
     # Relationships
     user = relationship("User", back_populates="topics")
     entries = relationship("Entry", back_populates="topic")
-    chat_threads = relationship("ChatThread", back_populates="topic")
 
 class Entry(Base):
     __tablename__ = "entries"
@@ -70,13 +73,19 @@ class ChatThread(Base):
     
     thread_id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
-    topic_id = Column(Integer, ForeignKey("topics.topic_id"), nullable=True)
-    title = Column(String(255), nullable=False)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    last_message_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    status = Column(String(50), nullable=False, default="active")
+    topic_id = Column(Integer)  # Can be NULL (uncategorized), -1 (all topics), or >0 (specific topic)
+    title = Column(String, nullable=False)
+    created_at = Column(DateTime, nullable=False)
+    last_message_at = Column(DateTime, nullable=False)
+    status = Column(String, nullable=False)
+    
+    __table_args__ = (
+        CheckConstraint(
+            'topic_id IS NULL OR topic_id = -1 OR topic_id > 0',
+            name='chat_threads_topic_id_check'
+        ),
+    )
 
     # Relationships
     user = relationship("User", back_populates="chat_threads")
-    topic = relationship("Topic", back_populates="chat_threads")
     messages = relationship("ChatMessage", back_populates="thread", cascade="all, delete-orphan")

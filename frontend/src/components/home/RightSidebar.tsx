@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { chatApi, ChatMessage, ChatThread } from '../../lib/api/chatApi';
+import { chatApi, ChatMessage, ChatThread, ALL_TOPICS_CHAT_TOPIC_ID } from '../../lib/api/chatApi';
 import {
     UNCATEGORIZED_TOPIC_ID,
     ALL_TOPICS_TOPIC_ID,
@@ -14,28 +14,13 @@ import type { Components } from 'react-markdown';
 import type { CSSProperties } from 'react';
 
 interface RightSidebarProps {
-    currentTopic: Topic | UncategorizedTopic | null;
+    currentTopic: number | Topic | UncategorizedTopic | null;
 }
 
 interface ThreadDropdownItemProps {
     thread: ChatThread;
     isSelected: boolean;
     onClick: () => void;
-}
-
-function ThreadDropdownItem({ thread, isSelected, onClick }: ThreadDropdownItemProps) {
-    return (
-        <div
-            onClick={onClick}
-            className={`p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 
-                       ${isSelected ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
-        >
-            <div className="font-medium dark:text-white truncate">{thread.title}</div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">
-                {chatApi.formatChatTimestamp(thread.last_message_at)}
-            </div>
-        </div>
-    );
 }
 
 export default function RightSidebar({ currentTopic }: RightSidebarProps) {
@@ -122,33 +107,35 @@ export default function RightSidebar({ currentTopic }: RightSidebarProps) {
             let response: ChatMessage;
             const messageData = {
                 content: userMessage,
-                role: 'user' as const,
-                topic_id: currentTopic?.topic_id
+                role: 'user' as const
             };
 
             if (!currentThread) {
-                // Create new thread first
+                const topic_id = !currentTopic ? ALL_TOPICS_CHAT_TOPIC_ID :  // -1 for all topics view
+                    currentTopic.topic_id === UNCATEGORIZED_TOPIC_ID ? null :  // null for uncategorized
+                        currentTopic.topic_id;  // specific topic id
+
                 const newThread = await chatApi.createThread({
                     title: userMessage.slice(0, 50) + (userMessage.length > 50 ? '...' : ''),
-                    topic_id: currentTopic?.topic_id
+                    topic_id: topic_id
                 });
-                
+
                 // Add thread to list and select it
                 setChatThreads(prev => [newThread, ...prev]);
                 setCurrentThread(newThread);
-                
+
                 // Send message in new thread
                 response = await chatApi.sendMessage(newThread.thread_id, messageData);
             } else {
                 // Send message in existing thread
                 response = await chatApi.sendMessage(currentThread.thread_id, messageData);
-                
+
                 // Update thread in list with new last_message_at
                 const updatedThread = {
                     ...currentThread,
                     last_message_at: response.timestamp
                 };
-                setChatThreads(prev => prev.map(t => 
+                setChatThreads(prev => prev.map(t =>
                     t.thread_id === currentThread.thread_id ? updatedThread : t
                 ));
                 setCurrentThread(updatedThread);
@@ -158,8 +145,8 @@ export default function RightSidebar({ currentTopic }: RightSidebarProps) {
             setMessages(prev => {
                 const withoutTemp = prev.slice(0, -2);
                 return [...withoutTemp,
-                    { ...response, role: 'user', content: userMessage },
-                    { ...response, role: 'assistant' }
+                { ...response, role: 'user', content: userMessage },
+                { ...response, role: 'assistant' }
                 ];
             });
 
@@ -278,6 +265,10 @@ export default function RightSidebar({ currentTopic }: RightSidebarProps) {
     };
 
     const handleNewChat = () => {
+        const topic_id = !currentTopic ? ALL_TOPICS_CHAT_TOPIC_ID :  // -1 for all topics view
+            currentTopic.topic_id === UNCATEGORIZED_TOPIC_ID ? null :  // null for uncategorized
+                currentTopic.topic_id;  // specific topic id
+
         setCurrentThread(null);
         setMessages([]);
     };

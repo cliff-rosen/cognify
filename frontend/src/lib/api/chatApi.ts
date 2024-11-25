@@ -1,5 +1,8 @@
 import { api, handleApiError, formatTimestamp } from './index';
 
+export const ALL_TOPICS_CHAT_TOPIC_ID = -1;
+export const UNCATEGORIZED_CHAT_TOPIC_ID = null;
+
 export interface ChatMessage {
     message_id: number;
     thread_id: number;
@@ -25,7 +28,7 @@ export interface ChatMessageCreate {
 }
 
 export interface ChatThreadCreate {
-    topic_id?: number;
+    topic_id?: number | null;  // -1 = all topics, null = uncategorized, number > 0 = specific topic
     title?: string;
 }
 
@@ -46,20 +49,22 @@ interface GetThreadsParams {
     limit?: number;
 }
 
+
 export const chatApi = {
     // Thread Management
     createThread: async (thread: ChatThreadCreate): Promise<ChatThread> => {
-        const response = await api.post('/api/chat/threads', thread);
+        const requestBody = {
+            ...thread,
+            topic_id: thread.topic_id === undefined ? ALL_TOPICS_CHAT_TOPIC_ID : thread.topic_id
+        };
+        const response = await api.post('/api/chat/threads', requestBody);
         return response.data;
     },
 
     getThreads: async (params: GetThreadsParams = {}): Promise<ChatThread[]> => {
-        // If topic_id is undefined, omit it to get all topics
-        // If topic_id is null, send it as "null" to get uncategorized
-        // If topic_id is a number, send it as-is to get specific topic
         const queryParams = {
             ...params,
-            topic_id: params.topic_id === undefined ? undefined : params.topic_id
+            topic_id: params.topic_id === undefined ? ALL_TOPICS_CHAT_TOPIC_ID : params.topic_id
         };
         const response = await api.get('/api/chat/threads', { params: queryParams });
         return response.data;

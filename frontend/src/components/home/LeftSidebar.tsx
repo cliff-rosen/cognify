@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Topic, topicsApi, UncategorizedTopic, isUncategorizedTopic, UNCATEGORIZED_TOPIC_ID, ALL_TOPICS_TOPIC_ID } from '../../lib/api/topicsApi'
+import { Topic, topicsApi, UncategorizedTopic, isUncategorizedTopic, ALL_TOPICS_TOPIC_ID, UNCATEGORIZED_TOPIC_ID } from '../../lib/api/topicsApi'
 import { DragEvent } from 'react'
 import { Entry, entriesApi } from '../../lib/api/entriesApi'
+
 
 interface LeftSidebarProps {
     onSelectTopic: (topicId: number | null) => void;
@@ -117,9 +118,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
             return
         }
 
-        const targetTopicId = topicId === null ? UNCATEGORIZED_TOPIC_ID : topicId
-
-        if (draggedEntryRef.current?.topic_id === targetTopicId) {
+        if (draggedEntryRef.current?.topic_id === topicId) {
             return
         }
 
@@ -136,35 +135,32 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
     }
 
     const handleDrop = async (e: DragEvent<HTMLDivElement>, topicId: number | null) => {
-        e.preventDefault()
+        e.preventDefault();
 
         if (e.currentTarget.classList) {
-            e.currentTarget.classList.remove('bg-blue-50', 'dark:bg-blue-900/30')
+            e.currentTarget.classList.remove('bg-blue-50', 'dark:bg-blue-900/30');
         }
 
         try {
-            const entryData = e.dataTransfer.getData('application/json')
-            const entry: Entry = JSON.parse(entryData)
+            const entryData = e.dataTransfer.getData('application/json');
+            const entry: Entry = JSON.parse(entryData);
 
-            const targetTopicId = topicId === null ? UNCATEGORIZED_TOPIC_ID : topicId
+            if (entry.topic_id === topicId) return;
 
-            if (entry.topic_id === targetTopicId) return
-
-            const newTopicId = targetTopicId === UNCATEGORIZED_TOPIC_ID ? null : targetTopicId
-            await entriesApi.moveEntryToTopic(entry.entry_id, newTopicId)
+            await entriesApi.moveEntryToTopic(entry.entry_id, topicId);
 
             const updatedTopics = await topicsApi.getTopics();
             onTopicsChange(updatedTopics);
 
             if (onEntryMoved) {
-                onEntryMoved()
+                onEntryMoved();
             }
         } catch (error) {
-            console.error('Error moving entry:', error)
+            console.error('Error moving entry:', error);
         } finally {
-            draggedEntryRef.current = null
+            draggedEntryRef.current = null;
         }
-    }
+    };
 
     // Add event listener for drag enter
     useEffect(() => {
@@ -205,7 +201,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                         <div
                             className={`flex items-center p-2 rounded-lg cursor-pointer
                                       hover:bg-gray-100 dark:hover:bg-gray-700
-                                      ${selectedTopicId === null || selectedTopicId === ALL_TOPICS_TOPIC_ID ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
+                                      ${selectedTopicId === ALL_TOPICS_TOPIC_ID ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
                             onClick={() => onSelectTopic(ALL_TOPICS_TOPIC_ID)}
                             onDragOver={(e) => handleDragOver(e, ALL_TOPICS_TOPIC_ID)}
                             onDragLeave={handleDragLeave}

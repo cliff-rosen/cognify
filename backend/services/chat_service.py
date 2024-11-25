@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any, Union
 from datetime import datetime
 import logging
-from models import ChatMessage, ChatThread, Topic, Entry
+from models import ChatMessage, ChatThread, Topic, Entry, ALL_TOPICS
 from schemas import ChatMessageCreate, ChatMessageResponse, ChatThreadCreate, ChatThreadUpdate, ChatMessageList
 from fastapi import HTTPException, status
 from services import ai_service
@@ -29,25 +29,33 @@ async def create_thread(
     
     A thread represents a distinct conversation context, optionally associated
     with a specific topic. Threads help maintain conversation state and context.
-    """
-    # If topic_id is 0 or invalid, set it to None
-    topic_id = thread.topic_id if thread.topic_id and thread.topic_id > 0 else None
     
-    # If topic_id is provided, verify it exists and belongs to user
-    if topic_id:
-        topic = db.query(Topic).filter(
-            Topic.topic_id == topic_id,
-            Topic.user_id == user_id
-        ).first()
-        if not topic:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Topic not found or does not belong to user"
-            )
+    topic_id can be:
+    - -1: All topics (dashboard view)
+    - null: No topics (uncategorized)
+    - number > 0: Specific topic
+    """
+    # Handle topic_id cases
+    topic_id = ALL_TOPICS  # Default to all topics view
+    if hasattr(thread, 'topic_id'):  # Only process if topic_id was specified in request
+        if thread.topic_id is None:  # Explicitly set to null = uncategorized
+            topic_id = None
+        elif thread.topic_id > 0:  # Specific topic
+            # Verify topic exists and belongs to user
+            topic = db.query(Topic).filter(
+                Topic.topic_id == thread.topic_id,
+                Topic.user_id == user_id
+            ).first()
+            if not topic:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Topic not found or does not belong to user"
+                )
+            topic_id = thread.topic_id
     
     db_thread = ChatThread(
         user_id=user_id,
-        topic_id=topic_id,  # Use the validated topic_id
+        topic_id=topic_id,  # Will be -1 for all topics, null for uncategorized
         title=thread.title or "New Chat",
         created_at=datetime.utcnow(),
         last_message_at=datetime.utcnow(),
@@ -68,7 +76,10 @@ async def get_user_threads(
 ) -> List[ChatThread]:
     """
     Gets all chat threads for a user, with optional filtering and pagination.
-    Topic_id can be 0 (all topics), None (uncategorized), or an integer (specific topic)
+    Topic_id can be:
+    - None/null: Get uncategorized threads (topic_id IS NULL)
+    - ALL_TOPICS (-1): Get threads from all topics view
+    - number > 0: Get threads for specific topic
     """
     query = db.query(ChatThread).filter(ChatThread.user_id == user_id)
     
@@ -76,16 +87,14 @@ async def get_user_threads(
         query = query.filter(ChatThread.status == status)
     
     # Handle topic filtering
-    if topic_id == 0:  # Empty string means get all topics
-        pass
-    elif topic_id is None:  # None means get uncategorized threads
+    if topic_id in (None, "null"):  # Uncategorized threads
         query = query.filter(ChatThread.topic_id.is_(None))
-    elif isinstance(topic_id, int):  # Specific topic ID
+    elif topic_id == ALL_TOPICS:  # All topics view
+        query = query.filter(ChatThread.topic_id == ALL_TOPICS)
+    else:  # Specific topic ID
         query = query.filter(ChatThread.topic_id == topic_id)
     
-    # Add ordering by last_message_at in descending order
     query = query.order_by(ChatThread.last_message_at.desc())
-    
     return query.offset(skip).limit(limit).all()
 
 async def update_thread(
@@ -629,3 +638,9 @@ async def get_thread_messages(
         items=message_responses,
         total=total
     )
+
+async def get_thread_topic(db: Session, thread: ChatThread) -> Optional[Topic]:
+    """Get the associated topic for a thread if it exists"""
+    if thread.topic_id is None or thread.topic_id == ALL_TOPICS:
+        return None
+    return db.query(Topic).filter(Topic.topic_id == thread.topic_id).first()

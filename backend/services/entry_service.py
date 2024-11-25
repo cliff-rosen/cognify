@@ -10,21 +10,23 @@ async def get_entries(db: Session, user_id: int, topic_id: int = None):
     """Get all entries for a user, optionally filtered by topic"""
     try:
         query = db.query(Entry).filter(Entry.user_id == user_id)
-        if topic_id is not None:
-            if topic_id == -1:
-                query = query.filter(Entry.topic_id.is_(None))
-            else:
-                # Verify the topic belongs to the user
-                topic = db.query(Topic).filter(
-                    Topic.topic_id == topic_id,
-                    Topic.user_id == user_id
-                ).first()
-                if not topic:
-                    raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND,
-                        detail="Topic not found or does not belong to user"
-                    )
-                query = query.filter(Entry.topic_id == topic_id)
+        if topic_id is None:
+            topic_id = 0
+
+        if topic_id == 0:
+            query = query.filter(Entry.topic_id.is_(None))
+        elif topic_id > 0:
+            # Verify the topic belongs to the user
+            topic = db.query(Topic).filter(
+                Topic.topic_id == topic_id,
+                Topic.user_id == user_id
+            ).first()
+            if not topic:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Topic not found or does not belong to user"
+                )
+            query = query.filter(Entry.topic_id == topic_id)
         entries = query.all()
         logger.info(f"Retrieved {len(entries)} entries for user {user_id}")
         return entries

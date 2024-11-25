@@ -1,5 +1,8 @@
 import { api, handleApiError, formatTimestamp } from './index'
 
+export const UNCATEGORIZED_TOPIC_ID = null;
+export const ALL_TOPICS_TOPIC_ID = -1;
+
 export interface Topic {
     topic_id: number;
     topic_name: string;
@@ -78,11 +81,8 @@ export interface QuickCategorizeUncategorizedResponse {
     metadata: CategoryMetadata;
 }
 
-export const ALL_TOPICS_TOPIC_ID = 0;
-export const UNCATEGORIZED_TOPIC_ID = -1;
-
 export interface UncategorizedTopic {
-    topic_id: number;
+    topic_id: null;
     topic_name: string;
     user_id: number;
     created_at: string;

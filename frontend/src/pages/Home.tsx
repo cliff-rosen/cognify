@@ -39,8 +39,12 @@ export default function HomeComponent() {
     };
 
     const getCurrentTopic = () => {
-        if (selectedTopicId === null || selectedTopicId === ALL_TOPICS_TOPIC_ID) return ALL_TOPICS_TOPIC_ID;
-        if (selectedTopicId === UNCATEGORIZED_TOPIC_ID) return UncategorizedTopicValue;
+        if (selectedTopicId === ALL_TOPICS_TOPIC_ID) {
+            return ALL_TOPICS_TOPIC_ID;
+        }
+        if (selectedTopicId === UNCATEGORIZED_TOPIC_ID) {
+            return UncategorizedTopicValue;
+        }
         return topics.find(t => t.topic_id === selectedTopicId) || null;
     };
 
