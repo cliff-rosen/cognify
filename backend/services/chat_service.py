@@ -3,7 +3,7 @@ from typing import List, Optional, Dict, Any, Union
 from datetime import datetime
 import logging
 from models import ChatMessage, ChatThread, Topic, Entry
-from schemas import ChatMessageCreate, ChatMessageResponse, ChatThreadCreate, ChatThreadUpdate
+from schemas import ChatMessageCreate, ChatMessageResponse, ChatThreadCreate, ChatThreadUpdate, ChatMessageList
 from fastapi import HTTPException, status
 from services import ai_service
 from sqlalchemy import or_
@@ -77,6 +77,9 @@ async def get_user_threads(
     elif isinstance(topic_id, int):  # Specific topic ID
         query = query.filter(ChatThread.topic_id == topic_id)
     
+    # Add ordering by last_message_at in descending order
+    query = query.order_by(ChatThread.last_message_at.desc())
+    
     return query.offset(skip).limit(limit).all()
 
 async def update_thread(
@@ -111,7 +114,10 @@ async def archive_thread(
     user_id: int,
     thread_id: int
 ) -> None:
-    """Archives a chat thread."""
+    """
+    Archives a chat thread.
+    Only allows users to archive their own threads.
+    """
     thread = db.query(ChatThread).filter(
         ChatThread.thread_id == thread_id,
         ChatThread.user_id == user_id
@@ -120,7 +126,7 @@ async def archive_thread(
     if not thread:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Thread not found"
+            detail="Thread not found or does not belong to user"
         )
         
     thread.status = "archived"
@@ -564,3 +570,51 @@ async def process_message(
             }
         )
         raise
+
+async def get_thread_messages(
+    db: Session,
+    user_id: int,
+    thread_id: int,
+    params: Dict[str, int] = {}
+) -> ChatMessageList:
+    """Get messages from a specific thread with pagination."""
+    # First verify the thread belongs to the user
+    thread = db.query(ChatThread).filter(
+        ChatThread.thread_id == thread_id,
+        ChatThread.user_id == user_id
+    ).first()
+    
+    if not thread:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Thread not found or does not belong to user"
+        )
+
+    skip = params.get('skip', 0)
+    limit = params.get('limit', 50)
+
+    # Get total count
+    total = db.query(ChatMessage).filter(
+        ChatMessage.thread_id == thread_id
+    ).count()
+
+    # Get messages with pagination
+    messages = (
+        db.query(ChatMessage)
+        .filter(ChatMessage.thread_id == thread_id)
+        .order_by(ChatMessage.timestamp.desc())  # Most recent first
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+    # Convert to response schema
+    message_responses = [
+        ChatMessageResponse.model_validate(message) 
+        for message in reversed(messages)  # Reverse to get chronological order
+    ]
+
+    return ChatMessageList(
+        items=message_responses,
+        total=total
+    )

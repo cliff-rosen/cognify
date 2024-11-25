@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { chatApi, ChatMessage, ChatThread } from '../../lib/api/chatApi';
-import { 
-    UNCATEGORIZED_TOPIC_ID, 
+import {
+    UNCATEGORIZED_TOPIC_ID,
     ALL_TOPICS_TOPIC_ID,
-    Topic, 
-    UncategorizedTopic 
+    Topic,
+    UncategorizedTopic
 } from '../../lib/api/topicsApi';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -50,6 +50,9 @@ export default function RightSidebar({ currentTopic }: RightSidebarProps) {
     const [chatThreads, setChatThreads] = useState<ChatThread[]>([]);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editTitle, setEditTitle] = useState('');
+    const editInputRef = useRef<HTMLInputElement>(null);
 
     // Add click outside handler for dropdown
     useEffect(() => {
@@ -99,6 +102,7 @@ export default function RightSidebar({ currentTopic }: RightSidebarProps) {
             textareaRef.current.style.height = 'auto';
         }
 
+        // Add user message to UI immediately
         const tempUserMessage: Partial<ChatMessage> = {
             content: userMessage,
             role: 'user',
@@ -106,6 +110,7 @@ export default function RightSidebar({ currentTopic }: RightSidebarProps) {
         };
         setMessages(prev => [...prev, tempUserMessage as ChatMessage]);
 
+        // Add loading indicator
         const tempLoadingMessage: Partial<ChatMessage> = {
             content: '...',
             role: 'assistant',
@@ -118,33 +123,48 @@ export default function RightSidebar({ currentTopic }: RightSidebarProps) {
             const messageData = {
                 content: userMessage,
                 role: 'user' as const,
-                topic_id: !currentTopic ? ALL_TOPICS_TOPIC_ID : currentTopic.topic_id
+                topic_id: currentTopic?.topic_id
             };
 
             if (!currentThread) {
-                response = await chatApi.sendMessageNewThread(messageData);
-                const newThread: ChatThread = {
-                    thread_id: response.thread_id,
-                    user_id: response.user_id,
-                    title: 'New Chat',
-                    created_at: response.timestamp,
-                    last_message_at: response.timestamp,
-                    status: 'active',
-                    topic_id: !currentTopic ? ALL_TOPICS_TOPIC_ID : currentTopic.topic_id
-                };
+                // Create new thread first
+                const newThread = await chatApi.createThread({
+                    title: userMessage.slice(0, 50) + (userMessage.length > 50 ? '...' : ''),
+                    topic_id: currentTopic?.topic_id
+                });
+                
+                // Add thread to list and select it
+                setChatThreads(prev => [newThread, ...prev]);
                 setCurrentThread(newThread);
+                
+                // Send message in new thread
+                response = await chatApi.sendMessage(newThread.thread_id, messageData);
             } else {
+                // Send message in existing thread
                 response = await chatApi.sendMessage(currentThread.thread_id, messageData);
+                
+                // Update thread in list with new last_message_at
+                const updatedThread = {
+                    ...currentThread,
+                    last_message_at: response.timestamp
+                };
+                setChatThreads(prev => prev.map(t => 
+                    t.thread_id === currentThread.thread_id ? updatedThread : t
+                ));
+                setCurrentThread(updatedThread);
             }
 
+            // Update messages, removing temporary ones and adding final ones
             setMessages(prev => {
                 const withoutTemp = prev.slice(0, -2);
                 return [...withoutTemp,
-                { ...response, role: 'user', content: userMessage },
-                { ...response, role: 'assistant' }
+                    { ...response, role: 'user', content: userMessage },
+                    { ...response, role: 'assistant' }
                 ];
             });
+
         } catch (error) {
+            // Handle error by showing error message
             setMessages(prev => {
                 const withoutLoading = prev.slice(0, -1);
                 return [...withoutLoading, {
@@ -195,7 +215,7 @@ export default function RightSidebar({ currentTopic }: RightSidebarProps) {
             setIsLoading(true);
             try {
                 let topicId: number | null;
-                
+
                 if (!currentTopic) {
                     topicId = ALL_TOPICS_TOPIC_ID;  // 0 for all topics
                 } else if (currentTopic.topic_id === UNCATEGORIZED_TOPIC_ID) {
@@ -209,6 +229,16 @@ export default function RightSidebar({ currentTopic }: RightSidebarProps) {
                     status: 'active'
                 });
                 setChatThreads(threads);
+
+                // If threads exist and no thread is currently selected, select the most recent one
+                if (threads.length > 0 && !currentThread) {
+                    const mostRecentThread = threads[0]; // Assuming threads are sorted by last_message_at
+                    handleThreadSelect(mostRecentThread);
+                } else if (threads.length === 0) {
+                    // Clear current thread if no threads exist for this topic
+                    setCurrentThread(null);
+                    setMessages([]);
+                }
             } catch (error) {
                 console.error('Error fetching chat threads:', error);
             } finally {
@@ -233,76 +263,210 @@ export default function RightSidebar({ currentTopic }: RightSidebarProps) {
         }
     };
 
+    const handleArchiveThread = async () => {
+        if (!currentThread) return;
+
+        try {
+            await chatApi.archiveThread(currentThread.thread_id);
+            // Remove thread from list and clear selection
+            setChatThreads(prev => prev.filter(t => t.thread_id !== currentThread.thread_id));
+            setCurrentThread(null);
+            setMessages([]);
+        } catch (error) {
+            console.error('Error archiving thread:', error);
+        }
+    };
+
     const handleNewChat = () => {
         setCurrentThread(null);
         setMessages([]);
-        setIsDropdownOpen(false);
     };
+
+    const handleRenameThread = async () => {
+        if (!currentThread || !editTitle.trim()) return;
+
+        try {
+            const updatedThread = await chatApi.updateThread(currentThread.thread_id, {
+                title: editTitle.trim()
+            });
+
+            // Update the thread in the list
+            setChatThreads(prev => prev.map(t =>
+                t.thread_id === updatedThread.thread_id ? updatedThread : t
+            ));
+
+            // Update current thread
+            setCurrentThread(updatedThread);
+            setIsEditing(false);
+        } catch (error) {
+            console.error('Error renaming thread:', error);
+        }
+    };
+
+    useEffect(() => {
+        if (isEditing && editInputRef.current) {
+            editInputRef.current.focus();
+        }
+    }, [isEditing]);
 
     return (
         <div className="h-full flex flex-col bg-white dark:bg-gray-800">
-            {/* Header with Dropdown */}
+            {/* Header */}
             <div className="shrink-0 p-4 border-b border-gray-200 dark:border-gray-700">
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col gap-3">
                     <h2 className="text-lg font-semibold dark:text-white">
                         {!currentTopic ? 'All Topics' :
                             currentTopic.topic_id === UNCATEGORIZED_TOPIC_ID ? 'Uncategorized Entries' :
                                 currentTopic.topic_name}
                     </h2>
-                    <div className="relative" ref={dropdownRef}>
+                    <div className="flex gap-2">
                         <button
-                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 
-                                     dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            onClick={handleNewChat}
+                            className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg 
+                                     bg-blue-500 text-white hover:bg-blue-600 
+                                     transition-colors duration-200"
                         >
-                            <span className="text-sm">
-                                {currentThread ? currentThread.title : 'Select Chat'}
-                            </span>
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                             </svg>
+                            New Chat
                         </button>
-
-                        {isDropdownOpen && (
-                            <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg 
-                                          border border-gray-200 dark:border-gray-700 z-10">
-                                <div className="p-2">
-                                    <button
-                                        onClick={() => {
-                                            handleNewChat();
-                                            setIsDropdownOpen(false);
-                                        }}
-                                        className="w-full p-2 text-left text-blue-500 hover:bg-gray-100 
-                                                 dark:hover:bg-gray-700 rounded"
-                                    >
-                                        + New Chat
-                                    </button>
-                                </div>
-                                <div className="max-h-60 overflow-y-auto border-t border-gray-200 dark:border-gray-700">
-                                    {chatThreads.map(thread => (
-                                        <ThreadDropdownItem
-                                            key={thread.thread_id}
-                                            thread={thread}
-                                            isSelected={currentThread?.thread_id === thread.thread_id}
-                                            onClick={() => {
-                                                handleThreadSelect(thread);
-                                                setIsDropdownOpen(false);
-                                            }}
-                                        />
-                                    ))}
-                                    {chatThreads.length === 0 && !isLoading && (
-                                        <div className="p-2 text-center text-gray-500 dark:text-gray-400">
-                                            No chat threads yet
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
+                        <button
+                            onClick={handleArchiveThread}
+                            disabled={!currentThread}
+                            className={`flex items-center gap-2 px-3 py-2 text-sm rounded-lg 
+                                      transition-colors duration-200
+                                      ${!currentThread
+                                    ? 'bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500 cursor-not-allowed'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                                }`}
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                    d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-14 0l2-2h10l2 2" />
+                            </svg>
+                            Archive
+                        </button>
                     </div>
                 </div>
             </div>
 
-            {/* Messages Container */}
+            {/* Thread Dropdown */}
+            <div className="relative shrink-0" ref={dropdownRef}>
+                <div className="w-full flex items-center justify-between gap-2 px-4 py-3 
+                        border-b border-gray-200 dark:border-gray-700">
+                    {isEditing && currentThread ? (
+                        <form
+                            className="flex-1 flex items-center gap-2"
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                                handleRenameThread();
+                            }}
+                        >
+                            <input
+                                ref={editInputRef}
+                                type="text"
+                                value={editTitle}
+                                onChange={(e) => setEditTitle(e.target.value)}
+                                className="flex-1 bg-white dark:bg-gray-700 text-sm text-gray-700 
+                                         dark:text-gray-300 rounded px-2 py-1 border border-gray-300 
+                                         dark:border-gray-600 focus:outline-none focus:ring-2 
+                                         focus:ring-blue-500"
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Escape') {
+                                        setIsEditing(false);
+                                    }
+                                }}
+                            />
+                            <button
+                                type="submit"
+                                className="text-blue-500 hover:text-blue-600 p-1"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setIsEditing(false)}
+                                className="text-gray-500 hover:text-gray-600 p-1"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </form>
+                    ) : (
+                        <>
+                            <button
+                                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                                className="flex-1 flex items-center justify-between gap-2 
+                                         hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-2 py-1"
+                            >
+                                <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
+                                    {currentThread ? currentThread.title : 'Select Chat'}
+                                </span>
+                                <svg className={`w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform duration-200 
+                                              ${isDropdownOpen ? 'rotate-180' : ''}`}
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+                            {currentThread && (
+                                <button
+                                    onClick={() => {
+                                        setEditTitle(currentThread.title);
+                                        setIsEditing(true);
+                                    }}
+                                    className="p-1 text-gray-500 hover:text-gray-600 dark:text-gray-400 
+                                             dark:hover:text-gray-300"
+                                    title="Rename chat"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                    </svg>
+                                </button>
+                            )}
+                        </>
+                    )}
+                </div>
+
+                {isDropdownOpen && (
+                    <div className="absolute left-0 right-0 mt-0 bg-white dark:bg-gray-800 
+                                  border-b border-gray-200 dark:border-gray-700 
+                                  shadow-lg z-10 max-h-[300px] overflow-y-auto">
+                        {chatThreads.map(thread => (
+                            <div
+                                key={thread.thread_id}
+                                onClick={() => handleThreadSelect(thread)}
+                                className={`p-3 cursor-pointer border-l-2 
+                                          hover:bg-gray-50 dark:hover:bg-gray-700
+                                          ${currentThread?.thread_id === thread.thread_id
+                                        ? 'border-blue-500 bg-gray-50 dark:bg-gray-700'
+                                        : 'border-transparent'}`}
+                            >
+                                <div className="font-medium text-gray-700 dark:text-gray-300 truncate">
+                                    {thread.title}
+                                </div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                    {chatApi.formatChatTimestamp(thread.last_message_at)}
+                                </div>
+                            </div>
+                        ))}
+                        {chatThreads.length === 0 && (
+                            <div className="p-3 text-center text-gray-500 dark:text-gray-400">
+                                No chat threads yet
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            {/* Thread List */}
             <div className="flex-1 overflow-y-auto">
                 <div className="p-4 space-y-4">
                     {messages.length === 0 ? (
@@ -319,7 +483,7 @@ export default function RightSidebar({ currentTopic }: RightSidebarProps) {
                                 <div
                                     className={`max-w-[80%] rounded-lg px-4 py-2 ${message.role === 'user'
                                         ? 'bg-blue-500 text-white'
-                                        : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
+                                        : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-300'
                                         }`}
                                 >
                                     {message.content === '...' ? (
@@ -367,7 +531,7 @@ export default function RightSidebar({ currentTopic }: RightSidebarProps) {
                         disabled={isLoading}
                         className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 
                                          px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 
-                                         dark:bg-gray-700 dark:text-white resize-none
+                                         dark:bg-gray-700 dark:text-gray-300 resize-none
                                          disabled:opacity-50 disabled:cursor-not-allowed
                                          min-h-[40px] max-h-[200px]"
                     />

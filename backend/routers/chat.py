@@ -227,36 +227,7 @@ async def send_message_new_thread(
     response_model=ChatMessageList,
     summary="Get messages in a thread",
     responses={
-        200: {
-            "description": "Messages successfully retrieved",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "items": [
-                            {
-                                "message_id": 1,
-                                "thread_id": 1,
-                                "user_id": 123,
-                                "topic_id": 1,
-                                "message_text": "Tell me about my Machine Learning entries.",
-                                "message_type": "user",
-                                "timestamp": "2024-03-13T12:00:00Z"
-                            },
-                            {
-                                "message_id": 2,
-                                "thread_id": 1,
-                                "user_id": 123,
-                                "topic_id": 1,
-                                "message_text": "Here's what I found...",
-                                "message_type": "assistant",
-                                "timestamp": "2024-03-13T12:00:01Z"
-                            }
-                        ],
-                        "total": 2
-                    }
-                }
-            }
-        },
+        200: {"description": "Messages successfully retrieved"},
         401: {"description": "Not authenticated"},
         403: {"description": "Thread belongs to another user"},
         404: {"description": "Thread not found"}
@@ -278,22 +249,11 @@ async def get_thread_messages(
     - **limit**: Maximum number of messages to return
     """
     logger.info(f"get_thread_messages called for thread {thread_id}")
-    messages = await chat_service.get_thread_messages(
+    return await chat_service.get_thread_messages(
         db=db,
         user_id=current_user.user_id,
         thread_id=thread_id,
-        skip=skip,
-        limit=limit
-    )
-    
-    total = await chat_service.get_thread_message_count(
-        db=db,
-        thread_id=thread_id
-    )
-    
-    return ChatMessageList(
-        items=messages,
-        total=total
+        params={"skip": skip, "limit": limit}
     )
 
 @router.patch(
