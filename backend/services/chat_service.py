@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 from datetime import datetime
 import logging
 from models import ChatMessage, ChatThread, Topic, Entry
@@ -57,22 +57,27 @@ async def get_user_threads(
     user_id: int,
     skip: int = 0,
     limit: int = 50,
-    status: Optional[str] = "active"
+    status: str = "active",
+    topic_id: Optional[Union[int, str]] = None
 ) -> List[ChatThread]:
     """
     Gets all chat threads for a user, with optional filtering and pagination.
+    Topic_id can be 0 (all topics), None (uncategorized), or an integer (specific topic)
     """
     query = db.query(ChatThread).filter(ChatThread.user_id == user_id)
     
     if status:
         query = query.filter(ChatThread.status == status)
-        
-    return (
-        query.order_by(ChatThread.last_message_at.desc())
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
+    
+    # Handle topic filtering
+    if topic_id == 0:  # Empty string means get all topics
+        pass
+    elif topic_id is None:  # None means get uncategorized threads
+        query = query.filter(ChatThread.topic_id.is_(None))
+    elif isinstance(topic_id, int):  # Specific topic ID
+        query = query.filter(ChatThread.topic_id == topic_id)
+    
+    return query.offset(skip).limit(limit).all()
 
 async def update_thread(
     db: Session,

@@ -1,6 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { chatApi, ChatMessage, ChatThread } from '../../lib/api/chatApi';
-import { UNCATEGORIZED_TOPIC_ID, Topic, UncategorizedTopic } from '../../lib/api/topicsApi'
+import { 
+    UNCATEGORIZED_TOPIC_ID, 
+    ALL_TOPICS_TOPIC_ID,
+    Topic, 
+    UncategorizedTopic 
+} from '../../lib/api/topicsApi';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -12,6 +17,27 @@ interface RightSidebarProps {
     currentTopic: Topic | UncategorizedTopic | null;
 }
 
+interface ThreadDropdownItemProps {
+    thread: ChatThread;
+    isSelected: boolean;
+    onClick: () => void;
+}
+
+function ThreadDropdownItem({ thread, isSelected, onClick }: ThreadDropdownItemProps) {
+    return (
+        <div
+            onClick={onClick}
+            className={`p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 
+                       ${isSelected ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
+        >
+            <div className="font-medium dark:text-white truncate">{thread.title}</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">
+                {chatApi.formatChatTimestamp(thread.last_message_at)}
+            </div>
+        </div>
+    );
+}
+
 export default function RightSidebar({ currentTopic }: RightSidebarProps) {
     console.log('Current Topic in RightSidebar:', currentTopic);
 
@@ -21,6 +47,21 @@ export default function RightSidebar({ currentTopic }: RightSidebarProps) {
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const [chatThreads, setChatThreads] = useState<ChatThread[]>([]);
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Add click outside handler for dropdown
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsDropdownOpen(false);
+            }
+        }
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -77,7 +118,7 @@ export default function RightSidebar({ currentTopic }: RightSidebarProps) {
             const messageData = {
                 content: userMessage,
                 role: 'user' as const,
-                topic_id: currentTopic?.topic_id || null
+                topic_id: !currentTopic ? ALL_TOPICS_TOPIC_ID : currentTopic.topic_id
             };
 
             if (!currentThread) {
@@ -85,11 +126,11 @@ export default function RightSidebar({ currentTopic }: RightSidebarProps) {
                 const newThread: ChatThread = {
                     thread_id: response.thread_id,
                     user_id: response.user_id,
-                    topic_id: response.topic_id,
                     title: 'New Chat',
                     created_at: response.timestamp,
                     last_message_at: response.timestamp,
-                    status: 'active'
+                    status: 'active',
+                    topic_id: !currentTopic ? ALL_TOPICS_TOPIC_ID : currentTopic.topic_id
                 };
                 setCurrentThread(newThread);
             } else {
@@ -149,15 +190,116 @@ export default function RightSidebar({ currentTopic }: RightSidebarProps) {
         }
     };
 
+    useEffect(() => {
+        const fetchChatThreads = async () => {
+            setIsLoading(true);
+            try {
+                let topicId: number | null;
+                
+                if (!currentTopic) {
+                    topicId = ALL_TOPICS_TOPIC_ID;  // 0 for all topics
+                } else if (currentTopic.topic_id === UNCATEGORIZED_TOPIC_ID) {
+                    topicId = UNCATEGORIZED_TOPIC_ID;  // -1 for uncategorized
+                } else {
+                    topicId = currentTopic.topic_id;  // specific topic id
+                }
+
+                const threads = await chatApi.getThreads({
+                    topic_id: topicId,
+                    status: 'active'
+                });
+                setChatThreads(threads);
+            } catch (error) {
+                console.error('Error fetching chat threads:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchChatThreads();
+    }, [currentTopic]);
+
+    const handleThreadSelect = async (thread: ChatThread) => {
+        setCurrentThread(thread);
+        setIsDropdownOpen(false);
+        setIsLoading(true);
+        try {
+            const response = await chatApi.getThreadMessages(thread.thread_id);
+            setMessages(response.items);
+        } catch (error) {
+            console.error('Error fetching messages:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleNewChat = () => {
+        setCurrentThread(null);
+        setMessages([]);
+        setIsDropdownOpen(false);
+    };
+
     return (
         <div className="h-full flex flex-col bg-white dark:bg-gray-800">
-            {/* Header */}
+            {/* Header with Dropdown */}
             <div className="shrink-0 p-4 border-b border-gray-200 dark:border-gray-700">
-                <h2 className="text-lg font-semibold dark:text-white">
-                    {!currentTopic ? 'All Topics' :
-                        currentTopic.topic_id === UNCATEGORIZED_TOPIC_ID ? 'Uncategorized Entries' :
-                            currentTopic.topic_name}
-                </h2>
+                <div className="flex justify-between items-center">
+                    <h2 className="text-lg font-semibold dark:text-white">
+                        {!currentTopic ? 'All Topics' :
+                            currentTopic.topic_id === UNCATEGORIZED_TOPIC_ID ? 'Uncategorized Entries' :
+                                currentTopic.topic_name}
+                    </h2>
+                    <div className="relative" ref={dropdownRef}>
+                        <button
+                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 
+                                     dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        >
+                            <span className="text-sm">
+                                {currentThread ? currentThread.title : 'Select Chat'}
+                            </span>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+
+                        {isDropdownOpen && (
+                            <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg 
+                                          border border-gray-200 dark:border-gray-700 z-10">
+                                <div className="p-2">
+                                    <button
+                                        onClick={() => {
+                                            handleNewChat();
+                                            setIsDropdownOpen(false);
+                                        }}
+                                        className="w-full p-2 text-left text-blue-500 hover:bg-gray-100 
+                                                 dark:hover:bg-gray-700 rounded"
+                                    >
+                                        + New Chat
+                                    </button>
+                                </div>
+                                <div className="max-h-60 overflow-y-auto border-t border-gray-200 dark:border-gray-700">
+                                    {chatThreads.map(thread => (
+                                        <ThreadDropdownItem
+                                            key={thread.thread_id}
+                                            thread={thread}
+                                            isSelected={currentThread?.thread_id === thread.thread_id}
+                                            onClick={() => {
+                                                handleThreadSelect(thread);
+                                                setIsDropdownOpen(false);
+                                            }}
+                                        />
+                                    ))}
+                                    {chatThreads.length === 0 && !isLoading && (
+                                        <div className="p-2 text-center text-gray-500 dark:text-gray-400">
+                                            No chat threads yet
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
 
             {/* Messages Container */}
@@ -224,16 +366,16 @@ export default function RightSidebar({ currentTopic }: RightSidebarProps) {
                         placeholder={getPlaceholderText()}
                         disabled={isLoading}
                         className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 
-                                 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 
-                                 dark:bg-gray-700 dark:text-white resize-none
-                                 disabled:opacity-50 disabled:cursor-not-allowed
-                                 min-h-[40px] max-h-[200px]"
+                                         px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 
+                                         dark:bg-gray-700 dark:text-white resize-none
+                                         disabled:opacity-50 disabled:cursor-not-allowed
+                                         min-h-[40px] max-h-[200px]"
                     />
                     <button
                         type="submit"
                         className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 
-                                 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed
-                                 h-[40px]"
+                                         transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed
+                                         h-[40px]"
                         disabled={!inputMessage.trim() || isLoading}
                     >
                         {isLoading ? 'Sending...' : 'Send'}

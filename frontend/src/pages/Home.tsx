@@ -5,7 +5,7 @@ import CenterWorkspace from '../components/home/CenterWorkspace'
 import RightSidebar from '../components/home/RightSidebar'
 import { useState, useRef } from 'react'
 import { Entry } from '../lib/api/entriesApi'
-import { Topic, UNCATEGORIZED_TOPIC_ID, UncategorizedTopic, UncategorizedTopicValue } from '../lib/api/topicsApi'
+import { Topic, UNCATEGORIZED_TOPIC_ID, ALL_TOPICS_TOPIC_ID, UncategorizedTopic, UncategorizedTopicValue } from '../lib/api/topicsApi'
 import LoginForm from '../components/auth/LoginForm'
 import { topicsApi } from '../lib/api/topicsApi'
 
@@ -39,7 +39,7 @@ export default function HomeComponent() {
     };
 
     const getCurrentTopic = () => {
-        if (selectedTopicId === null) return null;
+        if (selectedTopicId === null || selectedTopicId === ALL_TOPICS_TOPIC_ID) return ALL_TOPICS_TOPIC_ID;
         if (selectedTopicId === UNCATEGORIZED_TOPIC_ID) return UncategorizedTopicValue;
         return topics.find(t => t.topic_id === selectedTopicId) || null;
     };

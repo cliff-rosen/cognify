@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Topic, topicsApi, UncategorizedTopic, isUncategorizedTopic, UNCATEGORIZED_TOPIC_ID } from '../../lib/api/topicsApi'
+import { Topic, topicsApi, UncategorizedTopic, isUncategorizedTopic, UNCATEGORIZED_TOPIC_ID, ALL_TOPICS_TOPIC_ID } from '../../lib/api/topicsApi'
 import { DragEvent } from 'react'
 import { Entry, entriesApi } from '../../lib/api/entriesApi'
 
@@ -205,11 +205,11 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                         <div
                             className={`flex items-center p-2 rounded-lg cursor-pointer
                                       hover:bg-gray-100 dark:hover:bg-gray-700
-                                      ${selectedTopicId === null ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
-                            onClick={() => onSelectTopic(null)}
-                            onDragOver={(e) => handleDragOver(e, null)}
+                                      ${selectedTopicId === null || selectedTopicId === ALL_TOPICS_TOPIC_ID ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
+                            onClick={() => onSelectTopic(ALL_TOPICS_TOPIC_ID)}
+                            onDragOver={(e) => handleDragOver(e, ALL_TOPICS_TOPIC_ID)}
                             onDragLeave={handleDragLeave}
-                            onDrop={(e) => handleDrop(e, null)}
+                            onDrop={(e) => handleDrop(e, ALL_TOPICS_TOPIC_ID)}
                         >
                             <span className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
                                 <svg

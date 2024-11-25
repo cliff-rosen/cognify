@@ -39,6 +39,13 @@ export interface ChatMessageList {
     total: number;
 }
 
+interface GetThreadsParams {
+    topic_id?: number | null;  // undefined = all topics, null = uncategorized, number = specific topic
+    status?: 'active' | 'archived';
+    skip?: number;
+    limit?: number;
+}
+
 export const chatApi = {
     // Thread Management
     createThread: async (thread: ChatThreadCreate): Promise<ChatThread> => {
@@ -46,12 +53,15 @@ export const chatApi = {
         return response.data;
     },
 
-    getThreads: async (params: {
-        status?: string;
-        skip?: number;
-        limit?: number;
-    } = {}): Promise<ChatThread[]> => {
-        const response = await api.get('/api/chat/threads', { params });
+    getThreads: async (params: GetThreadsParams = {}): Promise<ChatThread[]> => {
+        // If topic_id is undefined, omit it to get all topics
+        // If topic_id is null, send it as "null" to get uncategorized
+        // If topic_id is a number, send it as-is to get specific topic
+        const queryParams = {
+            ...params,
+            topic_id: params.topic_id === undefined ? undefined : params.topic_id
+        };
+        const response = await api.get('/api/chat/threads', { params: queryParams });
         return response.data;
     },
 

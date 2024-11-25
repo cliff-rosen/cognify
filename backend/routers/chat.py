@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List, Optional, Union
 from database import get_db
 from schemas import (
     ChatMessageCreate, 
@@ -88,6 +88,7 @@ async def create_thread(
 )
 async def get_threads(
     status: Optional[str] = "active",
+    topic_id: Optional[Union[int, str]] = None,
     skip: int = 0,
     limit: int = 50,
     current_user = Depends(auth_service.validate_token),
@@ -98,16 +99,33 @@ async def get_threads(
     
     Parameters:
     - **status**: Filter by thread status ("active" or "archived")
+    - **topic_id**: Filter by topic ID (all topics if null or 0, uncategorized if None, specific topic if number)
     - **skip**: Number of threads to skip (for pagination)
     - **limit**: Maximum number of threads to return
     """
-    logger.info(f"get_threads called by user {current_user.user_id}")
+    logger.info(f"get_threads called by user {current_user.user_id} with topic_id: {topic_id}")
+    # Convert topic_id to the right type
+    parsed_topic_id = 0
+    if topic_id:
+        if topic_id.lower() == 'null':
+            parsed_topic_id = None  # All topics
+        else:
+            try:
+                parsed_topic_id = int(topic_id)
+            except ValueError:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Invalid topic_id format"
+                )
+    logger.info(f"Parsed topic_id: {parsed_topic_id}")
+
     return await chat_service.get_user_threads(
         db=db,
         user_id=current_user.user_id,
         skip=skip,
         limit=limit,
-        status=status
+        status=status,
+        topic_id=parsed_topic_id
     )
 
 @router.post(

@@ -78,6 +78,7 @@ export interface QuickCategorizeUncategorizedResponse {
     metadata: CategoryMetadata;
 }
 
+export const ALL_TOPICS_TOPIC_ID = 0;
 export const UNCATEGORIZED_TOPIC_ID = -1;
 
 export interface UncategorizedTopic {
