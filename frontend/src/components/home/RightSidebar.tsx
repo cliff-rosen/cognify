@@ -299,7 +299,7 @@ export default function RightSidebar({ currentTopic }: RightSidebarProps) {
         <div className="h-full flex flex-col bg-white dark:bg-gray-800">
             {/* Header */}
             <div className="shrink-0 p-4 border-b border-gray-200 dark:border-gray-700">
-                <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between gap-3">
                     <h2 className="text-lg font-semibold dark:text-white">
                         {currentTopic.topic_id === -1 ? 'All Topics' :
                             currentTopic.topic_id === 0 ? 'Uncategorized Entries' :
@@ -308,19 +308,19 @@ export default function RightSidebar({ currentTopic }: RightSidebarProps) {
                     <div className="flex gap-2">
                         <button
                             onClick={handleNewChat}
-                            className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg 
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm rounded-lg 
                                      bg-blue-500 text-white hover:bg-blue-600 
                                      transition-colors duration-200"
                         >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                             </svg>
-                            New Chat
+                            New
                         </button>
                         <button
                             onClick={handleArchiveThread}
                             disabled={!currentThread}
-                            className={`flex items-center gap-2 px-3 py-2 text-sm rounded-lg 
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 text-sm rounded-lg 
                                       transition-colors duration-200
                                       ${!currentThread
                                     ? 'bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500 cursor-not-allowed'
