@@ -11,6 +11,12 @@ import json
 
 logger = logging.getLogger(__name__)
 
+def serialize_datetime(obj):
+    """Convert datetime objects to ISO format strings for JSON serialization"""
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    raise TypeError(f'Type {type(obj)} not serializable')
+
 ################## Thread Management ##################
 
 async def create_thread(
@@ -268,13 +274,13 @@ async def get_conversation_context(
         {
             "role": msg.role,
             "content": msg.content,
-            "timestamp": msg.timestamp
+            "timestamp": serialize_datetime(msg.timestamp)
         }
         for msg in reversed(messages)
     ]
     
     logger.info(f"Retrieved {len(context)} context messages for thread {thread_id}")
-    logger.debug(f"Context messages: {json.dumps(context, indent=2, default=str)}")
+    logger.debug(f"Context messages: {json.dumps(context, indent=2)}")
     
     return context
 
@@ -509,13 +515,13 @@ async def process_message(
                     if k in valid_params
                 }
                 
-                logger.info(f"Executing tool {tool_name} with params: {filtered_params}")
+                logger.info(f"Executing tool {tool_name} with params: {json.dumps(filtered_params, default=serialize_datetime)}")
                 result = await tools[tool_name](
                     db=db,
                     user_id=user_id,
                     **filtered_params
                 )
-                logger.info(f"Tool {tool_name} result: {json.dumps(result, indent=2)}")
+                logger.info(f"Tool {tool_name} result: {json.dumps(result, indent=2, default=serialize_datetime)}")
                 tool_results[tool_name] = result
                 
             except Exception as e:
@@ -529,17 +535,22 @@ async def process_message(
                 )
                 tool_results[tool_name] = {"error": str(e)}
         
+        # Before generating AI response, serialize the thread info
+        thread_info = {
+            "thread_id": thread.thread_id,
+            "topic_id": thread.topic_id,
+            "title": thread.title,
+            "created_at": serialize_datetime(thread.created_at),
+            "last_message_at": serialize_datetime(thread.last_message_at)
+        }
+        
         # Generate AI response
         logger.info("Generating AI response...")
         ai_response = await ai_service.generate_response(
             message=user_message.content,
             context=context,
             tool_results=tool_results,
-            thread_info={
-                "thread_id": thread.thread_id,
-                "topic_id": thread.topic_id,
-                "title": thread.title
-            }
+            thread_info=thread_info
         )
         logger.info(f"AI response generated ({len(ai_response)} chars): {ai_response[:200]}...")
         

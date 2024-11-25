@@ -9,6 +9,7 @@ from schemas import (
     ProposedTopic, ProposedEntry, TopicSuggestion, 
     TopicAssignment, NewTopicProposal, CategorySuggestion
 )
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,11 @@ except Exception as e:
     logger.error(f"Failed to initialize Anthropic client: {str(e)}")
     raise
 
+def serialize_datetime(obj):
+    """Convert datetime objects to ISO format strings for JSON serialization"""
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    raise TypeError(f'Type {type(obj)} not serializable')
 
 def calculate_similarity_scores(topics: List[str], query: str) -> List[float]:
     """
@@ -705,7 +711,8 @@ async def generate_response(
             if isinstance(result, dict) and "error" in result:
                 tools_str += f"Error: {result['error']}\n"
             else:
-                tools_str += f"{json.dumps(result, indent=2)}\n"
+                # Use the serializer when converting tool results to JSON
+                tools_str += f"{json.dumps(result, indent=2, default=serialize_datetime)}\n"
         
         prompt = f"""Generate a helpful response to the user's message using the available context and tool results.
 
