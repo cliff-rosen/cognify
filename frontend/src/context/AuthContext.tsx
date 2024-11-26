@@ -9,6 +9,7 @@ interface AuthContextType {
     register: any
     logout: () => void
     error: string | null
+    handleSessionExpired: () => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -108,8 +109,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(null)
     }
 
+    const handleSessionExpired = () => {
+        logout()
+        setError('Your session has expired. Please login again.')
+    }
+
     return (
-        <AuthContext.Provider value={{ isAuthenticated, user, login, register, logout, error }}>
+        <AuthContext.Provider value={{ isAuthenticated, user, login, register, logout, error, handleSessionExpired }}>
             {children}
         </AuthContext.Provider>
     )

@@ -1,5 +1,12 @@
 import axios from 'axios';
 
+// Add this to store the handleSessionExpired callback
+let sessionExpiredHandler: (() => void) | null = null;
+
+export const setSessionExpiredHandler = (handler: () => void) => {
+    sessionExpiredHandler = handler;
+};
+
 console.log('Mode:', import.meta.env.MODE);
 const apiUrl = import.meta.env.MODE === 'production'
   ? 'https://cognify-api.ironcliff.ai'
@@ -26,6 +33,11 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !error.config.url?.includes('/login')) {
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');
+      
+      // Call the session expired handler if it exists
+      if (sessionExpiredHandler) {
+        sessionExpiredHandler();
+      }
     }
     return Promise.reject(error);
   }
