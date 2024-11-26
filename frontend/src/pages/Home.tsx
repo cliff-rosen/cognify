@@ -63,7 +63,7 @@ export default function HomeComponent() {
     }
 
     return (
-        <div className="h-screen flex flex-col dark:bg-gray-900">
+        <div className="h-full flex flex-col dark:bg-gray-900">
             {/* Top Bar */}
             <div className="flex-none">
                 <TopBar onEntryAdded={handleEntryAdded} onTopicCreated={handleTopicCreated} onTopicsChanged={refreshTopics} />

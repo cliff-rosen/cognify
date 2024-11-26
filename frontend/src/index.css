@@ -28,8 +28,10 @@
   --accent-foreground: 210 40% 98%;
 }
 
-html, body, #root {
-    height: 100vh;
-    margin: 0;
-    padding: 0;
-} 
+html,
+body,
+#root {
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+}
