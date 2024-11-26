@@ -1,4 +1,5 @@
 import axios from 'axios';
+import settings from '../../config/settings';
 
 // Add this to store the handleSessionExpired callback
 let sessionExpiredHandler: (() => void) | null = null;
@@ -7,16 +8,11 @@ export const setSessionExpiredHandler = (handler: () => void) => {
     sessionExpiredHandler = handler;
 };
 
-console.log('Mode:', import.meta.env.MODE);
-const apiUrl = import.meta.env.MODE === 'production'
-  ? 'https://cognify-api.ironcliff.ai'
-  : 'http://localhost:8000';
-
 export const api = axios.create({
-  baseURL: apiUrl,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+    baseURL: settings.apiUrl,
+    headers: {
+        'Content-Type': 'application/json',
+    },
 });
 
 api.interceptors.request.use((config) => {
