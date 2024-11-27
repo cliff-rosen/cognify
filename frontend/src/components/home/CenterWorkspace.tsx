@@ -1,11 +1,8 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react'
-import { Topic, UNCATEGORIZED_TOPIC_ID, isUncategorizedTopic, QuickCategorizeUncategorizedResponse } from '../../lib/api/topicsApi'
 import { entriesApi, Entry } from '../../lib/api/entriesApi'
-import { topicsApi } from '../../lib/api/topicsApi'
+import { topicsApi, Topic } from '../../lib/api/topicsApi'
 import { DragEvent } from 'react'
-import AutoCategorizeWizard from './AutoCategorizeWizard';
-import QuickModeEntryList from '../entries/QuickModeEntryList';
-import EntryList from '../entries/EntryList';
+import EntryList from '../entries/EntryList'
 
 interface CenterWorkspaceProps {
     selectedTopicId: number | null;
@@ -17,7 +14,7 @@ export interface CenterWorkspaceHandle {
     refreshEntries: () => void;
 }
 
-const EmptyStateMessage = ({ isUncategorized = false }) => (
+const EmptyStateMessage = () => (
     <div className="flex flex-col items-center justify-center h-full text-center p-8">
         <div className="mb-6">
             <svg className="w-16 h-16 text-gray-400 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -26,43 +23,37 @@ const EmptyStateMessage = ({ isUncategorized = false }) => (
         </div>
 
         <h3 className="text-xl font-semibold mb-2 text-gray-700 dark:text-gray-300">
-            {isUncategorized ? "No Uncategorized Entries" : "No Entries Yet"}
+            No Entries Yet
         </h3>
 
         <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md">
-            {isUncategorized ? (
-                "Great job! All your entries are organized into topics. To add new entries, use the input box at the top of the screen."
-            ) : (
-                "Start by adding entries using the input box at the top of the screen. New entries will go to Uncategorized unless you choose a topic."
-            )}
+            Start by adding entries using the input box at the top of the screen. New entries will go to Uncategorized unless you choose a topic.
         </p>
 
-        {!isUncategorized && (
-            <div className="space-y-4 text-sm text-left text-gray-600 dark:text-gray-400 max-w-md">
-                <h4 className="font-medium text-base text-gray-700 dark:text-gray-300">Getting Started:</h4>
+        <div className="space-y-4 text-sm text-left text-gray-600 dark:text-gray-400 max-w-md">
+            <h4 className="font-medium text-base text-gray-700 dark:text-gray-300">Getting Started:</h4>
 
-                <div className="flex items-start space-x-3">
-                    <span className="font-medium text-blue-600 dark:text-blue-400">1.</span>
-                    <span>
-                        <strong>Adding Entries:</strong> Type in the top box and click "Add Entry". Topics will be suggested, but you can ignore them to add to Uncategorized.
-                    </span>
-                </div>
-
-                <div className="flex items-start space-x-3">
-                    <span className="font-medium text-blue-600 dark:text-blue-400">2.</span>
-                    <span>
-                        <strong>Creating Topics:</strong> Click the + button next to "Topics" in the left sidebar to create new topics.
-                    </span>
-                </div>
-
-                <div className="flex items-start space-x-3">
-                    <span className="font-medium text-blue-600 dark:text-blue-400">3.</span>
-                    <span>
-                        <strong>Organizing:</strong> Drag and drop entries between topics, or use the AI assistant in Uncategorized view to organize multiple entries at once.
-                    </span>
-                </div>
+            <div className="flex items-start space-x-3">
+                <span className="font-medium text-blue-600 dark:text-blue-400">1.</span>
+                <span>
+                    <strong>Adding Entries:</strong> Type in the top box and click "Add Entry". Topics will be suggested, but you can ignore them to add to Uncategorized.
+                </span>
             </div>
-        )}
+
+            <div className="flex items-start space-x-3">
+                <span className="font-medium text-blue-600 dark:text-blue-400">2.</span>
+                <span>
+                    <strong>Creating Topics:</strong> Click the + button next to "Topics" in the left sidebar to create new topics.
+                </span>
+            </div>
+
+            <div className="flex items-start space-x-3">
+                <span className="font-medium text-blue-600 dark:text-blue-400">3.</span>
+                <span>
+                    <strong>Organizing:</strong> Drag and drop entries between topics, or use the AI assistant in Uncategorized view to organize multiple entries at once.
+                </span>
+            </div>
+        </div>
     </div>
 );
 
@@ -74,14 +65,6 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
         const [error, setError] = useState<string | null>(null)
         const [activeTab, setActiveTab] = useState<'entries' | 'summary' | 'notes'>('entries')
         const [entryToDelete, setEntryToDelete] = useState<Entry | null>(null)
-        const [showAutoCategorizeModal, setShowAutoCategorizeModal] = useState(false)
-        const [isInPlaceCategorizing, setIsInPlaceCategorizing] = useState(false)
-        const [allTopics, setAllTopics] = useState<Topic[]>([])
-        const [_isLoadingTopics, setIsLoadingTopics] = useState(false)
-        const [selectedEntries, setSelectedEntries] = useState<Set<number>>(new Set())
-        const [isQuickMode, setIsQuickMode] = useState(false)
-        const [categorySuggestions, setCategorySuggestions] = useState<QuickCategorizeUncategorizedResponse | null>(null);
-
 
         const fetchEntries = async () => {
             try {
@@ -165,316 +148,6 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
             }
         }
 
-        const fetchAllTopics = async () => {
-            setIsLoadingTopics(true)
-            try {
-                const topics = await topicsApi.getTopics()
-                // Filter out the uncategorized topic
-                setAllTopics(topics.filter(topic => !isUncategorizedTopic(topic)) as Topic[])
-            } catch (error) {
-                console.error('Error fetching topics:', error)
-            } finally {
-                setIsLoadingTopics(false)
-            }
-        }
-
-        const handleWizardAutoCategorize = async () => {
-            await fetchAllTopics()
-            setShowAutoCategorizeModal(true)
-        }
-
-        const handleEntrySelect = (entryId: number) => {
-            setSelectedEntries(prev => {
-                const newSet = new Set(prev)
-                if (newSet.has(entryId)) {
-                    newSet.delete(entryId)
-                } else {
-                    newSet.add(entryId)
-                }
-                return newSet
-            })
-        }
-
-        const handleSelectAll = () => {
-            if (selectedEntries.size === entries.length) {
-                setSelectedEntries(new Set())
-            } else {
-                setSelectedEntries(new Set(entries.map(e => e.entry_id)))
-            }
-        }
-
-        const handleAssistantAutoCategorize = async () => {
-            setIsQuickMode(true)
-            setSelectedEntries(new Set())
-        }
-
-        const handleProposeCategorization = async () => {
-            setIsInPlaceCategorizing(true);
-            try {
-                const response = await topicsApi.quickCategorizeUncategorized({
-                    min_confidence_threshold: 0.7,
-                    max_new_topics: 3
-                });
-                setCategorySuggestions(response);
-            } catch (error) {
-                console.error('Error proposing categories:', error);
-            } finally {
-                setIsInPlaceCategorizing(false);
-            }
-        };
-
-        const handleAcceptSuggestion = async (
-            entryId: number,
-            topicId: number | null,
-            topicName: string,
-            isNew: boolean
-        ) => {
-            try {
-                let targetTopicId: number;
-
-                if (isNew) {
-                    // Check if we already have a topic with this name (case insensitive)
-                    const existingTopics = await topicsApi.getTopics();
-                    const existingTopic = existingTopics.find(
-                        t => t.topic_name.toLowerCase() === topicName.toLowerCase()
-                    );
-
-                    if (existingTopic) {
-                        targetTopicId = existingTopic.topic_id;
-                    } else {
-                        // Create new topic if it doesn't exist
-                        const newTopic = await topicsApi.createTopic({
-                            topic_name: topicName
-                        });
-                        targetTopicId = newTopic.topic_id;
-                    }
-                } else {
-                    targetTopicId = topicId!;
-                }
-
-                // Move entry to target topic
-                await entriesApi.moveEntryToTopic(entryId, targetTopicId);
-
-                // Update UI state
-                if (categorySuggestions) {
-                    setCategorySuggestions(prev => {
-                        if (!prev) return null;
-
-                        // Create new state removing the processed entry
-                        const newState = {
-                            ...prev,
-                            existing_topic_assignments: prev.existing_topic_assignments
-                                .map(topic => ({
-                                    ...topic,
-                                    entries: topic.entries.filter(e => e.entry_id !== entryId)
-                                }))
-                                .filter(topic => topic.entries.length > 0),
-                            new_topic_proposals: prev.new_topic_proposals
-                                .map(topic => ({
-                                    ...topic,
-                                    entries: topic.entries.filter(e => e.entry_id !== entryId)
-                                }))
-                                .filter(topic => topic.entries.length > 0),
-                            metadata: {
-                                ...prev.metadata,
-                                total_entries_analyzed: prev.metadata.total_entries_analyzed - 1,
-                                assigned_to_existing: prev.metadata.assigned_to_existing - (isNew ? 0 : 1),
-                                assigned_to_new: prev.metadata.assigned_to_new - (isNew ? 1 : 0),
-                                unassigned: prev.metadata.unassigned
-                            }
-                        };
-
-                        return newState;
-                    });
-                }
-
-                // Remove from selected entries
-                setSelectedEntries(prev => {
-                    const newSet = new Set(prev);
-                    newSet.delete(entryId);
-                    return newSet;
-                });
-
-                // Refresh entries and UI
-                await fetchEntries();
-                if (onEntriesMoved) onEntriesMoved();
-                if (onTopicsChanged) onTopicsChanged();
-
-                // Exit quick mode if no more suggestions
-                if (!categorySuggestions || (
-                    categorySuggestions.existing_topic_assignments.length === 0 &&
-                    categorySuggestions.new_topic_proposals.length === 0 &&
-                    categorySuggestions.unassigned_entries.length === 0
-                )) {
-                    setIsQuickMode(false);
-                }
-
-            } catch (error) {
-                console.error('Error accepting suggestion:', error);
-            }
-        };
-
-        const handleRejectSuggestion = (
-            entryId: number,
-            topicId: number | null,
-            topicName: string,
-            isNew: boolean
-        ) => {
-            setCategorySuggestions(prev => {
-                if (!prev) return null;
-
-                // Create new state removing the entry from the appropriate section
-                return {
-                    ...prev,
-                    existing_topic_assignments: isNew ? prev.existing_topic_assignments :
-                        prev.existing_topic_assignments.map(topic => {
-                            if (topic.topic_id === topicId) {
-                                return {
-                                    ...topic,
-                                    entries: topic.entries.filter(e => e.entry_id !== entryId)
-                                };
-                            }
-                            return topic;
-                        }).filter(topic => topic.entries.length > 0),
-                    new_topic_proposals: !isNew ? prev.new_topic_proposals :
-                        prev.new_topic_proposals.map(topic => {
-                            if (topic.suggested_name === topicName) {
-                                return {
-                                    ...topic,
-                                    entries: topic.entries.filter(e => e.entry_id !== entryId)
-                                };
-                            }
-                            return topic;
-                        }).filter(topic => topic.entries.length > 0),
-                    // Move the entry to unassigned
-                    unassigned_entries: [
-                        ...prev.unassigned_entries,
-                        {
-                            entry_id: entryId,
-                            content: entries.find(e => e.entry_id === entryId)?.content || "",
-                            reason: "Rejected suggestion",
-                            top_suggestions: []
-                        }
-                    ]
-                };
-            });
-        };
-
-        const handleAcceptAllSuggestions = async () => {
-            if (!categorySuggestions || selectedEntries.size === 0) return;
-
-            setIsInPlaceCategorizing(true);
-            try {
-                // First, get all existing topics to check for name matches
-                const existingTopics = await topicsApi.getTopics();
-                const createdTopics = new Map<string, number>();  // Map from topic name to topic ID
-
-                // Pre-populate createdTopics with any existing topics that match new topic names
-                for (const topic of existingTopics) {
-                    createdTopics.set(topic.topic_name.toLowerCase(), topic.topic_id);
-                }
-
-                // Group entries by their best suggestion
-                const entriesByTopic = new Map<string, {
-                    isNew: boolean;
-                    topicId: number | null;  // Added topicId field
-                    topicName: string;
-                    entries: Array<{
-                        entryId: number;
-                        confidence: number;
-                    }>;
-                }>();
-
-                // Process existing topic assignments
-                for (const topic of categorySuggestions.existing_topic_assignments) {
-                    for (const entry of topic.entries) {
-                        if (!selectedEntries.has(entry.entry_id)) continue;
-
-                        const key = `existing-${topic.topic_id}`;
-                        const group = entriesByTopic.get(key) || {
-                            isNew: false,
-                            topicId: topic.topic_id,  // Store the actual topic ID
-                            topicName: topic.topic_name,
-                            entries: []
-                        };
-                        group.entries.push({
-                            entryId: entry.entry_id,
-                            confidence: entry.confidence
-                        });
-                        entriesByTopic.set(key, group);
-                    }
-                }
-
-                // Process new topic proposals
-                for (const topic of categorySuggestions.new_topic_proposals) {
-                    for (const entry of topic.entries) {
-                        if (!selectedEntries.has(entry.entry_id)) continue;
-
-                        const key = `new-${topic.suggested_name.toLowerCase()}`;
-                        const group = entriesByTopic.get(key) || {
-                            isNew: true,
-                            topicId: null,
-                            topicName: topic.suggested_name,
-                            entries: []
-                        };
-                        group.entries.push({
-                            entryId: entry.entry_id,
-                            confidence: entry.confidence
-                        });
-                        entriesByTopic.set(key, group);
-                    }
-                }
-
-                // Process each topic group
-                for (const [_, group] of entriesByTopic) {
-                    let targetTopicId: number;
-
-                    if (group.isNew) {
-                        // Check if we already have this topic (case insensitive)
-                        const existingId = createdTopics.get(group.topicName.toLowerCase());
-                        if (existingId) {
-                            targetTopicId = existingId;
-                        } else {
-                            // Create new topic
-                            const newTopic = await topicsApi.createTopic({
-                                topic_name: group.topicName
-                            });
-                            targetTopicId = newTopic.topic_id;
-                            createdTopics.set(group.topicName.toLowerCase(), newTopic.topic_id);
-                        }
-                    } else {
-                        // Use the stored topic ID directly
-                        targetTopicId = group.topicId!;
-                    }
-
-                    // Move all entries to the topic
-                    for (const entry of group.entries) {
-                        await entriesApi.moveEntryToTopic(entry.entryId, targetTopicId);
-                    }
-                }
-
-                // Refresh UI
-                await fetchEntries();
-                if (onEntriesMoved) onEntriesMoved();
-                if (onTopicsChanged) onTopicsChanged();
-
-                // Clear suggestions and exit quick mode
-                setCategorySuggestions(null);
-                setIsQuickMode(false);
-                setSelectedEntries(new Set());
-
-            } catch (error) {
-                console.error('Error accepting all suggestions:', error);
-            } finally {
-                setIsInPlaceCategorizing(false);
-            }
-        };
-
-        const handleClearSuggestions = () => {
-            setCategorySuggestions(null);
-            setSelectedEntries(new Set());
-        };
-
         const handleEditEntry = async (entryId: number, newContent: string) => {
             try {
                 // Find the current entry to get its topic_id
@@ -528,157 +201,81 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
 
         return (
             <div className="h-full flex flex-col">
-                {selectedTopicId === UNCATEGORIZED_TOPIC_ID ? (
-                    <>
-                        {/* Uncategorized View */}
-                        <div className="flex-none p-4 border-b border-gray-200 dark:border-gray-700">
-                            <div className="flex flex-col">
-                                <div className="flex justify-between items-center mb-3">
-                                    <h2 className="text-2xl font-bold dark:text-white">Uncategorized Entries</h2>
-                                    <div className="flex items-center gap-6">
-                                        <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                                            Categorization Assistant
-                                        </h3>
-                                        <div className="flex gap-2">
-                                            <button
-                                                onClick={handleAssistantAutoCategorize}
-                                                disabled={isInPlaceCategorizing}
-                                                className="px-3 py-1.5 text-sm bg-transparent border border-blue-500 text-blue-500 
-                                                         hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md
-                                                         transition-colors duration-150 disabled:opacity-50
-                                                         flex items-center gap-2"
-                                            >
-                                                <span>Quick 'n Easy</span>
-                                                {isInPlaceCategorizing && (
-                                                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                                                    </svg>
-                                                )}
-                                            </button>
-                                            <button
-                                                onClick={handleWizardAutoCategorize}
-                                                className="px-3 py-1.5 text-sm bg-transparent border border-amber-500 text-amber-500
-                                                         hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-md
-                                                         transition-colors duration-150"
-                                            >
-                                                Nuclear
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                {/* Content Area */}
+                <div className="flex-none border-b border-gray-200 dark:border-gray-700">
+                    <div className="px-6">
+                        <div className="flex space-x-8">
+                            <button
+                                onClick={() => setActiveTab('entries')}
+                                className={`py-4 px-2 relative ${activeTab === 'entries'
+                                    ? 'text-blue-500 dark:text-blue-400'
+                                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                                    }`}
+                            >
+                                <span>Entries</span>
+                                {activeTab === 'entries' && (
+                                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 dark:bg-blue-400"></div>
+                                )}
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('summary')}
+                                className={`py-4 px-2 relative ${activeTab === 'summary'
+                                    ? 'text-blue-500 dark:text-blue-400'
+                                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                                    }`}
+                            >
+                                <span>Summary</span>
+                                {activeTab === 'summary' && (
+                                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 dark:bg-blue-400"></div>
+                                )}
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('notes')}
+                                className={`py-4 px-2 relative ${activeTab === 'notes'
+                                    ? 'text-blue-500 dark:text-blue-400'
+                                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                                    }`}
+                            >
+                                <span>Notes</span>
+                                {activeTab === 'notes' && (
+                                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 dark:bg-blue-400"></div>
+                                )}
+                            </button>
                         </div>
+                    </div>
+                </div>
 
-                        <div className="p-4 flex-1 overflow-y-auto">
-                            {entries.length === 0 ? (
-                                <EmptyStateMessage isUncategorized={true} />
-                            ) : isQuickMode ? (
-                                <QuickModeEntryList
-                                    entries={entries}
-                                    selectedEntries={selectedEntries}
-                                    onEntrySelect={handleEntrySelect}
-                                    onSelectAll={handleSelectAll}
-                                    onCancel={() => setIsQuickMode(false)}
-                                    categorySuggestions={categorySuggestions}
-                                    onAcceptSuggestion={handleAcceptSuggestion}
-                                    onRejectSuggestion={handleRejectSuggestion}
-                                    isInPlaceCategorizing={isInPlaceCategorizing}
-                                    onProposeCategorization={handleProposeCategorization}
-                                    onAcceptAllSuggestions={handleAcceptAllSuggestions}
-                                    onClearSuggestions={handleClearSuggestions}
-                                />
-                            ) : (
-                                <EntryList
-                                    entries={entries}
-                                    onDragStart={handleDragStart}
-                                    onDragEnd={handleDragEnd}
-                                    onDelete={(entry: Entry) => setEntryToDelete(entry)}
-                                    onEdit={handleEditEntry}
-                                    emptyMessage="No uncategorized entries"
-                                />
-                            )}
+                {/* Content Area */}
+                <div className="p-4 flex-1 overflow-y-auto">
+                    {activeTab === 'entries' && (
+                        entries.length === 0 ? (
+                            <EmptyStateMessage />
+                        ) : (
+                            <EntryList
+                                entries={entries}
+                                onDragStart={handleDragStart}
+                                onDragEnd={handleDragEnd}
+                                onDelete={(entry: Entry) => setEntryToDelete(entry)}
+                                onEdit={handleEditEntry}
+                                emptyMessage="No entries in this topic"
+                            />
+                        )
+                    )}
+                    {activeTab === 'summary' && (
+                        <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+                            <p className="text-gray-500 dark:text-gray-400">
+                                Summary view coming soon...
+                            </p>
                         </div>
-                    </>
-                ) : (
-                    <>
-                        {/* Topic View */}
-                        <div className="flex-none border-b border-gray-200 dark:border-gray-700">
-                            <div className="px-6">
-                                <div className="flex space-x-8">
-                                    <button
-                                        onClick={() => setActiveTab('entries')}
-                                        className={`py-4 px-2 relative ${activeTab === 'entries'
-                                            ? 'text-blue-500 dark:text-blue-400'
-                                            : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-                                            }`}
-                                    >
-                                        <span>Entries</span>
-                                        {activeTab === 'entries' && (
-                                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 dark:bg-blue-400"></div>
-                                        )}
-                                    </button>
-                                    <button
-                                        onClick={() => setActiveTab('summary')}
-                                        className={`py-4 px-2 relative ${activeTab === 'summary'
-                                            ? 'text-blue-500 dark:text-blue-400'
-                                            : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-                                            }`}
-                                    >
-                                        <span>Summary</span>
-                                        {activeTab === 'summary' && (
-                                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 dark:bg-blue-400"></div>
-                                        )}
-                                    </button>
-                                    <button
-                                        onClick={() => setActiveTab('notes')}
-                                        className={`py-4 px-2 relative ${activeTab === 'notes'
-                                            ? 'text-blue-500 dark:text-blue-400'
-                                            : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-                                            }`}
-                                    >
-                                        <span>Notes</span>
-                                        {activeTab === 'notes' && (
-                                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 dark:bg-blue-400"></div>
-                                        )}
-                                    </button>
-                                </div>
-                            </div>
+                    )}
+                    {activeTab === 'notes' && (
+                        <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+                            <p className="text-gray-500 dark:text-gray-400">
+                                Notes view coming soon...
+                            </p>
                         </div>
-
-                        {/* Content Area */}
-                        <div className="p-4 flex-1 overflow-y-auto">
-                            {activeTab === 'entries' && (
-                                entries.length === 0 ? (
-                                    <EmptyStateMessage isUncategorized={false} />
-                                ) : (
-                                    <EntryList
-                                        entries={entries}
-                                        onDragStart={handleDragStart}
-                                        onDragEnd={handleDragEnd}
-                                        onDelete={(entry: Entry) => setEntryToDelete(entry)}
-                                        onEdit={handleEditEntry}
-                                        emptyMessage="No entries in this topic"
-                                    />
-                                )
-                            )}
-                            {activeTab === 'summary' && (
-                                <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
-                                    <p className="text-gray-500 dark:text-gray-400">
-                                        Summary view coming soon...
-                                    </p>
-                                </div>
-                            )}
-                            {activeTab === 'notes' && (
-                                <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
-                                    <p className="text-gray-500 dark:text-gray-400">
-                                        Notes view coming soon...
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-                    </>
-                )}
+                    )}
+                </div>
 
                 {/* Delete Confirmation Modal */}
                 {entryToDelete && (
@@ -706,24 +303,6 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                             </div>
                         </div>
                     </div>
-                )}
-
-                {/* Auto-categorize Wizard */}
-                {showAutoCategorizeModal && (
-                    <AutoCategorizeWizard
-                        topics={allTopics}
-                        onClose={() => setShowAutoCategorizeModal(false)}
-                        onComplete={async () => {
-                            setShowAutoCategorizeModal(false);
-                            await fetchEntries(); // Refresh entries
-                            if (onTopicsChanged) {
-                                onTopicsChanged(); // Trigger topics refresh
-                            }
-                            if (onEntriesMoved) {
-                                onEntriesMoved(); // Keep existing callback
-                            }
-                        }}
-                    />
                 )}
             </div>
         )
