@@ -131,6 +131,8 @@ export default function CategorizeAssistant({
 
     const handleRejectSuggestion = (
         entryId: number,
+        topicId: number | null,
+        topicName: string,
         isNew: boolean
     ) => {
         setCategorySuggestions(prev => {
@@ -157,6 +159,13 @@ export default function CategorizeAssistant({
                     }
                 ]
             };
+        });
+
+        // Remove from selected entries if it was selected
+        setSelectedEntries(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(entryId);
+            return newSet;
         });
     };
 
