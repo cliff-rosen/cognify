@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
     UNCATEGORIZED_TOPIC_ID,
-    ALL_TOPICS_TOPIC_ID,
     Topic,
     UncategorizedTopic,
     AllTopicsTopic
@@ -22,11 +21,11 @@ type AssistantMode = 'chat' | 'categorize' | 'facilitate';
 export default function RightSidebar({ currentTopic, onEntriesMoved, onTopicsChanged }: RightSidebarProps) {
     const [mode, setMode] = useState<AssistantMode>('chat');
     const [entries, setEntries] = useState<Entry[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
+    const [_isLoading, setIsLoading] = useState(false);
 
     const fetchEntries = async () => {
         if (currentTopic?.topic_id !== UNCATEGORIZED_TOPIC_ID) return;
-        
+
         setIsLoading(true);
         try {
             const fetchedEntries = await entriesApi.getEntries(UNCATEGORIZED_TOPIC_ID);
@@ -132,11 +131,7 @@ export default function RightSidebar({ currentTopic, onEntriesMoved, onTopicsCha
                 )}
 
                 {mode === 'facilitate' && (
-                    <TaskFacilitator
-                        currentTopic={currentTopic?.topic_id === ALL_TOPICS_TOPIC_ID ? null :
-                            currentTopic?.topic_id === UNCATEGORIZED_TOPIC_ID ? null :
-                                currentTopic as Topic}
-                    />
+                    <TaskFacilitator />
                 )}
             </div>
         </div>

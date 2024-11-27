@@ -1,14 +1,9 @@
 import { useState } from 'react';
-import { Topic } from '../../lib/api/topicsApi';
 
-interface TaskFacilitatorProps {
-    currentTopic: Topic | null;
-}
-
-export default function TaskFacilitator({ currentTopic }: TaskFacilitatorProps) {
+export default function TaskFacilitator() {
     const [taskInput, setTaskInput] = useState('');
     const [isAnalyzing, setIsAnalyzing] = useState(false);
-    
+
     return (
         <div className="h-full flex flex-col">
             {/* Task Input Area */}
@@ -33,7 +28,7 @@ export default function TaskFacilitator({ currentTopic }: TaskFacilitatorProps) 
                                  hover:bg-blue-600 disabled:bg-gray-400 
                                  disabled:cursor-not-allowed"
                     >
-                        {isAnalyzing ? 'Analyzing...' : 'Analyze Task'}
+                        {isAnalyzing ? 'Not yet implemented...' : 'Analyze Task'}
                     </button>
                 </div>
             </div>

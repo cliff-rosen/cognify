@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Topic, topicsApi, QuickCategorizeUncategorizedResponse } from '../../lib/api/topicsApi';
+import { topicsApi, QuickCategorizeUncategorizedResponse } from '../../lib/api/topicsApi';
 import { Entry, entriesApi } from '../../lib/api/entriesApi';
 import QuickModeEntryList from '../entries/QuickModeEntryList';
 
@@ -131,8 +131,8 @@ export default function CategorizeAssistant({
 
     const handleRejectSuggestion = (
         entryId: number,
-        topicId: number | null,
-        topicName: string,
+        _topicId: number | null,
+        _topicName: string,
         isNew: boolean
     ) => {
         setCategorySuggestions(prev => {
@@ -282,20 +282,36 @@ export default function CategorizeAssistant({
 
     return (
         <div className="h-full flex flex-col p-4">
-            <QuickModeEntryList
-                entries={entries}
-                selectedEntries={selectedEntries}
-                onEntrySelect={handleEntrySelect}
-                onSelectAll={handleSelectAll}
-                onCancel={handleClearSuggestions}
-                categorySuggestions={categorySuggestions}
-                onAcceptSuggestion={handleAcceptSuggestion}
-                onRejectSuggestion={handleRejectSuggestion}
-                isInPlaceCategorizing={isInPlaceCategorizing}
-                onProposeCategorization={handleProposeCategorization}
-                onAcceptAllSuggestions={handleAcceptAllSuggestions}
-                onClearSuggestions={handleClearSuggestions}
-            />
+            {entries.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-center">
+                    <div className="mb-6">
+                        <svg className="w-16 h-16 text-green-500 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <h3 className="text-xl font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                        All Entries Categorized!
+                    </h3>
+                    <p className="text-gray-600 dark:text-gray-400 max-w-md">
+                        Great job! All your entries are organized into topics. To add new entries, use the input box at the top of the screen.
+                    </p>
+                </div>
+            ) : (
+                <QuickModeEntryList
+                    entries={entries}
+                    selectedEntries={selectedEntries}
+                    onEntrySelect={handleEntrySelect}
+                    onSelectAll={handleSelectAll}
+                    onCancel={handleClearSuggestions}
+                    categorySuggestions={categorySuggestions}
+                    onAcceptSuggestion={handleAcceptSuggestion}
+                    onRejectSuggestion={handleRejectSuggestion}
+                    isInPlaceCategorizing={isInPlaceCategorizing}
+                    onProposeCategorization={handleProposeCategorization}
+                    onAcceptAllSuggestions={handleAcceptAllSuggestions}
+                    onClearSuggestions={handleClearSuggestions}
+                />
+            )}
         </div>
     );
 } 

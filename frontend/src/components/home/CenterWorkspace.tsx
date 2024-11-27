@@ -1,6 +1,6 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { entriesApi, Entry } from '../../lib/api/entriesApi'
-import { topicsApi, Topic } from '../../lib/api/topicsApi'
+import { Topic } from '../../lib/api/topicsApi'
 import { DragEvent } from 'react'
 import EntryList from '../entries/EntryList'
 
