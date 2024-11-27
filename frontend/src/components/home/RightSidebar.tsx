@@ -24,11 +24,23 @@ export default function RightSidebar({ currentTopic, onEntriesMoved, onTopicsCha
     const [_isLoading, setIsLoading] = useState(false);
 
     const fetchEntries = async () => {
-        if (currentTopic?.topic_id !== UNCATEGORIZED_TOPIC_ID) return;
+        console.log('fetchEntries called');
+
+        if (mode === 'categorize' && currentTopic?.topic_id !== UNCATEGORIZED_TOPIC_ID) return;
+
+        let topicId
+        if (!currentTopic) {
+            topicId = -1;  // -1 for all topics
+        } else if (currentTopic.topic_id === UNCATEGORIZED_TOPIC_ID) {
+            topicId = UNCATEGORIZED_TOPIC_ID;  // 0 for uncategorized
+        } else {
+            topicId = currentTopic.topic_id;  // specific topic id
+        }
+
 
         setIsLoading(true);
         try {
-            const fetchedEntries = await entriesApi.getEntries(UNCATEGORIZED_TOPIC_ID);
+            const fetchedEntries = await entriesApi.getEntries(topicId);
             setEntries(fetchedEntries);
         } catch (error) {
             console.error('Error fetching entries:', error);
@@ -38,7 +50,7 @@ export default function RightSidebar({ currentTopic, onEntriesMoved, onTopicsCha
     };
 
     useEffect(() => {
-        if (mode === 'categorize') {
+        if (mode === 'categorize' || mode === 'facilitate') {
             fetchEntries();
         }
     }, [mode, currentTopic?.topic_id]);

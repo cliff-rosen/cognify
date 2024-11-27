@@ -71,18 +71,20 @@ export default function HomeComponent() {
 
             {/* Main Content Area */}
             <div className="flex-1 flex min-h-0">
-                {/* Left Sidebar */}
-                <LeftSidebar
-                    onSelectTopic={setSelectedTopicId}
-                    selectedTopicId={selectedTopicId}
-                    topics={topics}
-                    onTopicsChange={(newTopics) => {
-                        setTopics(newTopics);
-                    }}
-                    onEntryMoved={() => {
-                        centerWorkspaceRef.current?.refreshEntries()
-                    }}
-                />
+                {/* Left Sidebar - Add padding */}
+                <div className="pt-2 pl-2">
+                    <LeftSidebar
+                        onSelectTopic={setSelectedTopicId}
+                        selectedTopicId={selectedTopicId}
+                        topics={topics}
+                        onTopicsChange={(newTopics) => {
+                            setTopics(newTopics);
+                        }}
+                        onEntryMoved={() => {
+                            centerWorkspaceRef.current?.refreshEntries()
+                        }}
+                    />
+                </div>
 
                 {/* Center Content */}
                 <main className="flex-1 min-w-0 overflow-hidden flex min-h-0">
@@ -123,15 +125,17 @@ export default function HomeComponent() {
                         </button>
                     </div>
 
-                    {/* Right Sidebar */}
+                    {/* Right Sidebar - Add padding */}
                     {showRightSidebar && (
-                        <aside className="w-[500px] flex-shrink-0 border-l border-gray-200 dark:border-gray-700 overflow-y-auto h-full">
-                            <RightSidebar
-                                currentTopic={getCurrentTopic()}
-                                onEntriesMoved={() => centerWorkspaceRef.current?.refreshEntries()}
-                                onTopicsChanged={refreshTopics}
-                            />
-                        </aside>
+                        <div className="pt-2 pr-2">
+                            <aside className="w-[500px] flex-shrink-0 border-l border-gray-200 dark:border-gray-700 overflow-y-auto h-full">
+                                <RightSidebar
+                                    currentTopic={getCurrentTopic()}
+                                    onEntriesMoved={() => centerWorkspaceRef.current?.refreshEntries()}
+                                    onTopicsChanged={refreshTopics}
+                                />
+                            </aside>
+                        </div>
                     )}
                 </main>
             </div>

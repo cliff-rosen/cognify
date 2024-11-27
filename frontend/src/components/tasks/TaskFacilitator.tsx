@@ -7,7 +7,6 @@ interface TaskFacilitatorProps {
 }
 
 export default function TaskFacilitator({ entries }: TaskFacilitatorProps) {
-    const [taskInput, setTaskInput] = useState('');
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
