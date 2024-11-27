@@ -18,7 +18,6 @@ export default function TaskEntryList({
     onSelectAll,
     onCancel,
     isLoading,
-    loadingText,
     onAnalyzeTasks
 }: TaskEntryListProps) {
     if (entries.length === 0) {
