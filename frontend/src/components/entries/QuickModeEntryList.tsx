@@ -8,8 +8,10 @@ interface QuickModeEntryListProps {
     onSelectAll: () => void;
     onCancel: () => void;
     categorySuggestions: QuickCategorizeUncategorizedResponse | null;
-    onAcceptSuggestion: (entryId: number, topicId: number | null, topicName: string, isNew: boolean) => void;
-    onRejectSuggestion: (entryId: number, topicId: number | null, topicName: string, isNew: boolean) => void;
+    isLoading?: boolean;
+    loadingText?: string;
+    onAcceptSuggestion?: (entryId: number, topicId: number | null, topicName: string, isNew: boolean) => void;
+    onRejectSuggestion?: (entryId: number, topicId: number | null, topicName: string, isNew: boolean) => void;
     isInPlaceCategorizing: boolean;
     onProposeCategorization: () => void;
     onAcceptAllSuggestions: () => void;
@@ -23,6 +25,8 @@ const QuickModeEntryList = ({
     onSelectAll,
     onCancel,
     categorySuggestions,
+    isLoading,
+    loadingText,
     onAcceptSuggestion,
     onRejectSuggestion,
     isInPlaceCategorizing,
@@ -37,6 +41,24 @@ const QuickModeEntryList = ({
             </div>
         );
     }
+
+    const handleAcceptSuggestion = (
+        entryId: number,
+        topicId: number | null,
+        topicName: string,
+        isNew: boolean
+    ) => {
+        onAcceptSuggestion?.(entryId, topicId, topicName, isNew);
+    };
+
+    const handleRejectSuggestion = (
+        entryId: number,
+        topicId: number | null,
+        topicName: string,
+        isNew: boolean
+    ) => {
+        onRejectSuggestion?.(entryId, topicId, topicName, isNew);
+    };
 
     return (
         <div className="space-y-4">
@@ -128,7 +150,7 @@ const QuickModeEntryList = ({
                                                     </div>
                                                     <div className="flex gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                         <button
-                                                            onClick={() => onAcceptSuggestion(
+                                                            onClick={() => handleAcceptSuggestion(
                                                                 entry.entry_id,
                                                                 topic.topic_id,
                                                                 topic.topic_name,
@@ -144,7 +166,7 @@ const QuickModeEntryList = ({
                                                             </svg>
                                                         </button>
                                                         <button
-                                                            onClick={() => onRejectSuggestion(
+                                                            onClick={() => handleRejectSuggestion(
                                                                 entry.entry_id,
                                                                 topic.topic_id,
                                                                 topic.topic_name,
@@ -199,7 +221,7 @@ const QuickModeEntryList = ({
                                                     </div>
                                                     <div className="flex gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                         <button
-                                                            onClick={() => onAcceptSuggestion(
+                                                            onClick={() => handleAcceptSuggestion(
                                                                 entry.entry_id,
                                                                 null,
                                                                 topic.suggested_name,
@@ -215,7 +237,7 @@ const QuickModeEntryList = ({
                                                             </svg>
                                                         </button>
                                                         <button
-                                                            onClick={() => onRejectSuggestion(
+                                                            onClick={() => handleRejectSuggestion(
                                                                 entry.entry_id,
                                                                 null,
                                                                 topic.suggested_name,

@@ -131,7 +131,7 @@ export default function RightSidebar({ currentTopic, onEntriesMoved, onTopicsCha
                 )}
 
                 {mode === 'facilitate' && (
-                    <TaskFacilitator />
+                    <TaskFacilitator entries={entries} />
                 )}
             </div>
         </div>

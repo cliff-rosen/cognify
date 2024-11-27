@@ -1,52 +1,92 @@
 import { useState } from 'react';
+import { Entry } from '../../lib/api/entriesApi';
+import QuickModeEntryList from '../entries/QuickModeEntryList';
 
-export default function TaskFacilitator() {
+interface TaskFacilitatorProps {
+    entries: Entry[];
+}
+
+export default function TaskFacilitator({ entries }: TaskFacilitatorProps) {
     const [taskInput, setTaskInput] = useState('');
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
+    const handleSelectionChange = (entryId: number) => {
+        setSelectedIds(prev => {
+            const newSet = new Set(prev);
+            if (prev.has(entryId)) {
+                newSet.delete(entryId);
+            } else {
+                newSet.add(entryId);
+            }
+            return newSet;
+        });
+    };
+
+    const handleSelectAll = () => {
+        if (selectedIds.size === entries.length) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(entries.map(e => e.entry_id)));
+        }
+    };
+
+    const handleCancel = () => {
+        setSelectedIds(new Set());
+        setIsAnalyzing(false);
+    };
+
+    const handleProposeCategorization = () => {
+        setIsAnalyzing(true);
+        // TODO: Implement task analysis
+    };
+
+    const handleAcceptAllSuggestions = () => {
+        // TODO: Implement accepting all suggestions
+    };
+
+    const handleClearSuggestions = () => {
+        setIsAnalyzing(false);
+        setSelectedIds(new Set());
+    };
+
+    if (entries.length === 0) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full text-center">
+                <div className="mb-6">
+                    <svg className="w-16 h-16 text-green-500 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <h3 className="text-xl font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                    No Tasks Available
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 max-w-md">
+                    Add some entries first to start analyzing tasks.
+                </p>
+            </div>
+        );
+    }
 
     return (
-        <div className="h-full flex flex-col">
-            {/* Task Input Area */}
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                <textarea
-                    value={taskInput}
-                    onChange={(e) => setTaskInput(e.target.value)}
-                    placeholder="Describe your task..."
-                    className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg 
-                             focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                             dark:bg-gray-700 dark:text-white resize-none"
-                    rows={3}
-                />
-                <div className="mt-3 flex justify-between items-center">
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                        AI will analyze and suggest the best way to handle your task
-                    </div>
-                    <button
-                        onClick={() => setIsAnalyzing(true)}
-                        disabled={!taskInput.trim() || isAnalyzing}
-                        className="px-4 py-2 bg-blue-500 text-white rounded-lg 
-                                 hover:bg-blue-600 disabled:bg-gray-400 
-                                 disabled:cursor-not-allowed"
-                    >
-                        {isAnalyzing ? 'Not yet implemented...' : 'Analyze Task'}
-                    </button>
-                </div>
-            </div>
+        <div className="h-full flex flex-col p-4">
 
-            {/* Task Analysis Results */}
-            <div className="flex-1 overflow-y-auto p-4">
-                {isAnalyzing ? (
-                    <div className="space-y-4">
-                        <div className="animate-pulse space-y-3">
-                            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
-                            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="text-center text-gray-500 dark:text-gray-400">
-                        Enter your task above to get started
-                    </div>
-                )}
+            {/* Entry Selection List */}
+            <div className="flex-1 overflow-y-auto">
+                <QuickModeEntryList
+                    entries={entries}
+                    selectedEntries={selectedIds}
+                    onEntrySelect={handleSelectionChange}
+                    onSelectAll={handleSelectAll}
+                    onCancel={handleCancel}
+                    categorySuggestions={null}
+                    isLoading={isAnalyzing}
+                    loadingText="Analyzing tasks..."
+                    isInPlaceCategorizing={false}
+                    onProposeCategorization={handleProposeCategorization}
+                    onAcceptAllSuggestions={handleAcceptAllSuggestions}
+                    onClearSuggestions={handleClearSuggestions}
+                />
             </div>
 
             {/* Available Connectors */}
@@ -55,14 +95,12 @@ export default function TaskFacilitator() {
                     Available Connectors
                 </h3>
                 <div className="flex flex-wrap gap-2">
-                    {/* Example connector badges */}
                     <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                         Desktop
                     </span>
                     <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                         Email
                     </span>
-                    {/* Add more connector badges */}
                 </div>
             </div>
         </div>
