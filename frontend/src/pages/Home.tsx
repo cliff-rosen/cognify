@@ -230,7 +230,11 @@ export default function HomeComponent() {
                     {/* Right Sidebar */}
                     {showRightSidebar && (
                         <aside className="w-[500px] flex-shrink-0 border-l border-gray-200 dark:border-gray-700 overflow-y-auto h-full">
-                            <RightSidebar currentTopic={getCurrentTopic()} />
+                            <RightSidebar 
+                                currentTopic={getCurrentTopic()} 
+                                onEntriesMoved={() => centerWorkspaceRef.current?.refreshEntries()}
+                                onTopicsChanged={refreshTopics}
+                            />
                         </aside>
                     )}
                 </main>

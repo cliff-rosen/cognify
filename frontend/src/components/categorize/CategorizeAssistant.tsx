@@ -10,8 +10,8 @@ interface CategorizeAssistantProps {
     refreshEntries: () => Promise<void>;
 }
 
-export default function CategorizeAssistant({ 
-    onEntriesMoved, 
+export default function CategorizeAssistant({
+    onEntriesMoved,
     onTopicsChanged,
     entries,
     refreshEntries
@@ -119,6 +119,7 @@ export default function CategorizeAssistant({
                 return newSet;
             });
 
+            // Refresh UI
             await refreshEntries();
             if (onEntriesMoved) onEntriesMoved();
             if (onTopicsChanged) onTopicsChanged();
@@ -130,8 +131,6 @@ export default function CategorizeAssistant({
 
     const handleRejectSuggestion = (
         entryId: number,
-        topicId: number | null,
-        topicName: string,
         isNew: boolean
     ) => {
         setCategorySuggestions(prev => {
@@ -169,6 +168,7 @@ export default function CategorizeAssistant({
             const existingTopics = await topicsApi.getTopics();
             const createdTopics = new Map<string, number>();
 
+            // Pre-populate createdTopics with existing topics
             for (const topic of existingTopics) {
                 createdTopics.set(topic.topic_name.toLowerCase(), topic.topic_id);
             }
@@ -183,13 +183,79 @@ export default function CategorizeAssistant({
                 }>;
             }>();
 
-            // Process existing topic assignments and new topic proposals...
-            // [Previous implementation remains the same]
+            // Process existing topic assignments
+            for (const topic of categorySuggestions.existing_topic_assignments) {
+                for (const entry of topic.entries) {
+                    if (!selectedEntries.has(entry.entry_id)) continue;
 
+                    const key = `existing-${topic.topic_id}`;
+                    const group = entriesByTopic.get(key) || {
+                        isNew: false,
+                        topicId: topic.topic_id,
+                        topicName: topic.topic_name,
+                        entries: []
+                    };
+                    group.entries.push({
+                        entryId: entry.entry_id,
+                        confidence: entry.confidence
+                    });
+                    entriesByTopic.set(key, group);
+                }
+            }
+
+            // Process new topic proposals
+            for (const topic of categorySuggestions.new_topic_proposals) {
+                for (const entry of topic.entries) {
+                    if (!selectedEntries.has(entry.entry_id)) continue;
+
+                    const key = `new-${topic.suggested_name.toLowerCase()}`;
+                    const group = entriesByTopic.get(key) || {
+                        isNew: true,
+                        topicId: null,
+                        topicName: topic.suggested_name,
+                        entries: []
+                    };
+                    group.entries.push({
+                        entryId: entry.entry_id,
+                        confidence: entry.confidence
+                    });
+                    entriesByTopic.set(key, group);
+                }
+            }
+
+            // Process each topic group
+            for (const [_, group] of entriesByTopic) {
+                let targetTopicId: number;
+
+                if (group.isNew) {
+                    // Check if we already have this topic (case insensitive)
+                    const existingId = createdTopics.get(group.topicName.toLowerCase());
+                    if (existingId) {
+                        targetTopicId = existingId;
+                    } else {
+                        // Create new topic
+                        const newTopic = await topicsApi.createTopic({
+                            topic_name: group.topicName
+                        });
+                        targetTopicId = newTopic.topic_id;
+                        createdTopics.set(group.topicName.toLowerCase(), newTopic.topic_id);
+                    }
+                } else {
+                    targetTopicId = group.topicId!;
+                }
+
+                // Move all entries to the topic
+                for (const entry of group.entries) {
+                    await entriesApi.moveEntryToTopic(entry.entryId, targetTopicId);
+                }
+            }
+
+            // Refresh UI
             await refreshEntries();
             if (onEntriesMoved) onEntriesMoved();
             if (onTopicsChanged) onTopicsChanged();
 
+            // Clear state
             setCategorySuggestions(null);
             setSelectedEntries(new Set());
 
@@ -206,7 +272,7 @@ export default function CategorizeAssistant({
     };
 
     return (
-        <div className="h-full flex flex-col">
+        <div className="h-full flex flex-col p-4">
             <QuickModeEntryList
                 entries={entries}
                 selectedEntries={selectedEntries}
