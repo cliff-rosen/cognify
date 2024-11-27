@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { topicsApi, QuickCategorizeUncategorizedResponse } from '../../lib/api/topicsApi';
 import { Entry, entriesApi } from '../../lib/api/entriesApi';
-import QuickModeEntryList from '../entries/QuickModeEntryList';
+import CategorizeEntryList from '../categorize/CategorizeEntryList';
 
 interface CategorizeAssistantProps {
     onEntriesMoved?: () => void;
@@ -297,7 +297,7 @@ export default function CategorizeAssistant({
                     </p>
                 </div>
             ) : (
-                <QuickModeEntryList
+                <CategorizeEntryList
                     entries={entries}
                     selectedEntries={selectedEntries}
                     onEntrySelect={handleEntrySelect}

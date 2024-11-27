@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Entry } from '../../lib/api/entriesApi';
-import QuickModeEntryList from '../entries/QuickModeEntryList';
+import TaskEntryList from '../tasks/TaskEntryList';
 
 interface TaskFacilitatorProps {
     entries: Entry[];
@@ -41,15 +41,6 @@ export default function TaskFacilitator({ entries }: TaskFacilitatorProps) {
         // TODO: Implement task analysis
     };
 
-    const handleAcceptAllSuggestions = () => {
-        // TODO: Implement accepting all suggestions
-    };
-
-    const handleClearSuggestions = () => {
-        setIsAnalyzing(false);
-        setSelectedIds(new Set());
-    };
-
     if (entries.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center h-full text-center">
@@ -73,19 +64,15 @@ export default function TaskFacilitator({ entries }: TaskFacilitatorProps) {
 
             {/* Entry Selection List */}
             <div className="flex-1 overflow-y-auto">
-                <QuickModeEntryList
+                <TaskEntryList
                     entries={entries}
                     selectedEntries={selectedIds}
                     onEntrySelect={handleSelectionChange}
                     onSelectAll={handleSelectAll}
                     onCancel={handleCancel}
-                    categorySuggestions={null}
                     isLoading={isAnalyzing}
                     loadingText="Analyzing tasks..."
-                    isInPlaceCategorizing={false}
-                    onProposeCategorization={handleProposeCategorization}
-                    onAcceptAllSuggestions={handleAcceptAllSuggestions}
-                    onClearSuggestions={handleClearSuggestions}
+                    onAnalyzeTasks={handleProposeCategorization}
                 />
             </div>
 
