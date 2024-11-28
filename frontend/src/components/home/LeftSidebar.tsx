@@ -249,7 +249,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
     return (
         <>
             {/* Wrapper div to contain both hot zone and sidebar */}
-            <div className="relative flex-shrink-0">
+            <div className="relative h-full">
                 {/* Hot Zone */}
                 {!isSidebarPinned && !isSidebarOpen && (
                     <div
@@ -259,7 +259,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                 )}
 
                 {isSidebarOpen && (
-                    <div data-sidebar-open={isSidebarOpen}>
+                    <div data-sidebar-open={isSidebarOpen} className="h-full">
                         {/* Sidebar */}
                         <aside
                             ref={sidebarRef}
@@ -273,54 +273,27 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                                   transition-all duration-200 ease-in-out
                                   ${!isSidebarOpen ? 'md:w-0 md:min-w-0' : ''}`}
                         >
-                            {/* Pin/Toggle Button */}
-                            <div className={`absolute -right-4 top-2 ${!isSidebarOpen ? 'md:right-0' : ''}`}>
-                                <button
-                                    onClick={handlePinClick}
-                                    className="p-2 bg-white dark:bg-gray-800 border border-gray-200 
-                                         dark:border-gray-700 rounded-full shadow 
-                                         hover:bg-gray-50 dark:hover:bg-gray-700 
-                                         transition-colors"
-                                    title={isSidebarPinned ? "Unpin Sidebar" : "Pin Sidebar"}
-                                >
-                                    <svg
-                                        className={`w-4 h-4 text-gray-400 hover:text-gray-600 
-                                              dark:hover:text-gray-200 transform transition-transform 
-                                              ${isSidebarPinned ? '-rotate-45' : ''}`}
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M5 5h14l-4.5 12.5L12 6l-2.5 11.5L5 5z"
+                            <div className="w-full h-full flex flex-col">
+                                {/* Logo Section */}
+                                <div className="flex-none p-4 border-b border-gray-200 dark:border-gray-700">
+                                    <div className="flex items-center gap-2">
+                                        <img
+                                            src="/cognify-icon.svg"
+                                            alt="Cognify Logo"
+                                            className="h-8 w-8"
                                         />
-                                    </svg>
-                                </button>
-                            </div>
-
-                            <div className="w-full flex flex-col">
-                                {isSidebarOpen && (
-                                    <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                                        <h2 className="text-lg font-semibold dark:text-white">Topics</h2>
-                                        <button
-                                            onClick={() => setIsCreating(true)}
-                                            className="p-1 text-blue-500 hover:text-blue-600 dark:hover:text-blue-400"
-                                            title="Add new topic"
-                                        >
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                            </svg>
-                                        </button>
+                                        <span className="text-xl font-bold text-gray-800 dark:text-white">
+                                            Cognify
+                                        </span>
                                     </div>
-                                )}
-                                <div className={`flex-1 overflow-y-auto ${isSidebarOpen ? 'p-2' : 'p-0'}`}>
-                                    <ul className="space-y-1">
+                                </div>
+
+                                {/* Topics List - Added pt-4 for spacing */}
+                                <div className="flex-1 overflow-y-auto pt-4">
+                                    <ul className="space-y-2"> {/* Increased space between items */}
                                         <li>
                                             <div
-                                                className={`flex items-center p-2 rounded-lg cursor-pointer
+                                                className={`flex items-center p-2 mx-2 rounded-lg cursor-pointer  {/* Added mx-2 for side padding */}
                                                       hover:bg-gray-100 dark:hover:bg-gray-700
                                                       ${selectedTopicId === ALL_TOPICS_TOPIC_ID ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
                                                 onClick={() => onSelectTopic(ALL_TOPICS_TOPIC_ID)}
@@ -462,33 +435,48 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                                     </ul>
                                 </div>
 
-                                {/* Delete Confirmation Modal */}
-                                {topicToDelete && (
-                                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                                        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm w-full">
-                                            <h3 className="text-lg font-semibold mb-4 dark:text-white">
-                                                Delete Topic
-                                            </h3>
-                                            <p className="text-gray-600 dark:text-gray-300 mb-6">
-                                                Are you sure you want to delete "{topicToDelete.topic_name}"? This action cannot be undone.
-                                            </p>
-                                            <div className="flex justify-end gap-3">
-                                                <button
-                                                    onClick={() => setTopicToDelete(null)}
-                                                    className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
-                                                >
-                                                    Cancel
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeleteTopic(topicToDelete)}
-                                                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
-                                                >
-                                                    Delete
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
+                                {/* Add Topic Button - At bottom */}
+                                <div className="border-t border-gray-200 dark:border-gray-700">
+                                    <button
+                                        onClick={() => setIsCreating(true)}
+                                        className="w-full p-4 text-left text-sm font-medium text-gray-600 
+                                                 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700/50
+                                                 flex items-center gap-2"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                        </svg>
+                                        Add Topic
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Pin/Toggle Button */}
+                            <div className={`absolute -right-4 top-2 ${!isSidebarOpen ? 'md:right-0' : ''}`}>
+                                <button
+                                    onClick={handlePinClick}
+                                    className="p-2 bg-white dark:bg-gray-800 border border-gray-200 
+                                         dark:border-gray-700 rounded-full shadow 
+                                         hover:bg-gray-50 dark:hover:bg-gray-700 
+                                         transition-colors"
+                                    title={isSidebarPinned ? "Unpin Sidebar" : "Pin Sidebar"}
+                                >
+                                    <svg
+                                        className={`w-4 h-4 text-gray-400 hover:text-gray-600 
+                                              dark:hover:text-gray-200 transform transition-transform 
+                                              ${isSidebarPinned ? '-rotate-45' : ''}`}
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M5 5h14l-4.5 12.5L12 6l-2.5 11.5L5 5z"
+                                        />
+                                    </svg>
+                                </button>
                             </div>
                         </aside>
                     </div>

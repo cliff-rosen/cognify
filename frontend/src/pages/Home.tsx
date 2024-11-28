@@ -1,21 +1,19 @@
-import { useAuth } from '../context/AuthContext'
-import TopBar from '../components/home/TopBar'
-import LeftSidebar from '../components/home/LeftSidebar'
 import CenterWorkspace from '../components/home/CenterWorkspace'
 import RightSidebar from '../components/home/RightSidebar'
 import { useState, useRef } from 'react'
 import { Entry } from '../lib/api/entriesApi'
 import { Topic, UNCATEGORIZED_TOPIC_ID, ALL_TOPICS_TOPIC_ID, AllTopicsTopicValue, UncategorizedTopicValue, UncategorizedTopic } from '../lib/api/topicsApi'
-import LoginForm from '../components/auth/LoginForm'
 import { topicsApi } from '../lib/api/topicsApi'
 
-export default function HomeComponent() {
-    const { isAuthenticated, login, register, error } = useAuth()
-    const [topics, setTopics] = useState<(Topic | UncategorizedTopic)[]>([])
-    const [selectedTopicId, setSelectedTopicId] = useState<number | null>(ALL_TOPICS_TOPIC_ID)
+interface HomeProps {
+    selectedTopicId: number | null;
+    topics: (Topic | UncategorizedTopic)[];
+    setTopics: (topics: (Topic | UncategorizedTopic)[]) => void;
+}
+
+export default function HomeComponent({ selectedTopicId, topics, setTopics }: HomeProps) {
     const centerWorkspaceRef = useRef<{ refreshEntries: () => void } | null>(null)
     const [showRightSidebar, setShowRightSidebar] = useState(true)
-    const [isRegistering, setIsRegistering] = useState(false)
 
     const handleEntryAdded = (entry: Entry) => {
         if (selectedTopicId === null ||
@@ -26,7 +24,9 @@ export default function HomeComponent() {
     }
 
     const handleTopicCreated = (newTopic: Topic) => {
-        setTopics(prevTopics => [...prevTopics, newTopic])
+        if (selectedTopicId === ALL_TOPICS_TOPIC_ID) {
+            centerWorkspaceRef.current?.refreshEntries()
+        }
     }
 
     const refreshTopics = async () => {
@@ -48,44 +48,10 @@ export default function HomeComponent() {
         return topics.find(t => t.topic_id === selectedTopicId) || null;
     };
 
-    if (!isAuthenticated) {
-        return (
-            <div className="min-h-screen flex items-center justify-center dark:bg-gray-900 bg-gray-50">
-                <LoginForm
-                    isRegistering={isRegistering}
-                    setIsRegistering={setIsRegistering}
-                    login={login}
-                    register={register}
-                    error={error}
-                />
-            </div>
-        )
-    }
-
     return (
         <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900">
-            {/* Top Bar */}
-            <div className="flex-none">
-                <TopBar onEntryAdded={handleEntryAdded} onTopicCreated={handleTopicCreated} onTopicsChanged={refreshTopics} />
-            </div>
-
             {/* Main Content Area */}
             <div className="flex-1 flex min-h-0">
-                {/* Left Sidebar - Add padding */}
-                <div className="pt-2 pl-2">
-                    <LeftSidebar
-                        onSelectTopic={setSelectedTopicId}
-                        selectedTopicId={selectedTopicId}
-                        topics={topics}
-                        onTopicsChange={(newTopics) => {
-                            setTopics(newTopics);
-                        }}
-                        onEntryMoved={() => {
-                            centerWorkspaceRef.current?.refreshEntries()
-                        }}
-                    />
-                </div>
-
                 {/* Center Content */}
                 <main className="flex-1 min-w-0 overflow-hidden flex min-h-0">
                     <div className="flex-1">
@@ -99,7 +65,7 @@ export default function HomeComponent() {
                         />
                     </div>
 
-                    {/* Toggle Button - Fixed width container */}
+                    {/* Toggle Button */}
                     <div className="w-6 flex-none flex items-center justify-center">
                         <button
                             onClick={() => setShowRightSidebar(!showRightSidebar)}
@@ -117,15 +83,15 @@ export default function HomeComponent() {
                                     strokeLinejoin="round"
                                     strokeWidth={2}
                                     d={showRightSidebar
-                                        ? "M9 5l7 7-7 7"  // chevron-right when sidebar is visible
-                                        : "M15 19l-7-7 7-7" // chevron-left when sidebar is hidden
+                                        ? "M9 5l7 7-7 7"
+                                        : "M15 19l-7-7 7-7"
                                     }
                                 />
                             </svg>
                         </button>
                     </div>
 
-                    {/* Right Sidebar - Add padding */}
+                    {/* Right Sidebar */}
                     {showRightSidebar && (
                         <div className="pt-2 pr-2">
                             <aside className="w-[500px] flex-shrink-0 border-l border-gray-200 dark:border-gray-700 overflow-y-auto h-full">
