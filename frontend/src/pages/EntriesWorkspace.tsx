@@ -24,9 +24,7 @@ export default function HomeComponent({ selectedTopicId, topics, setTopics }: Ho
     }
 
     const handleTopicCreated = (newTopic: Topic) => {
-        if (selectedTopicId === ALL_TOPICS_TOPIC_ID) {
-            centerWorkspaceRef.current?.refreshEntries()
-        }
+        setTopics([...topics, newTopic])
     }
 
     const refreshTopics = async () => {
@@ -58,6 +56,7 @@ export default function HomeComponent({ selectedTopicId, topics, setTopics }: Ho
                         <CenterWorkspace
                             ref={centerWorkspaceRef}
                             selectedTopicId={selectedTopicId}
+                            topics={topics}
                             onEntriesMoved={() => {
                                 centerWorkspaceRef.current?.refreshEntries();
                             }}

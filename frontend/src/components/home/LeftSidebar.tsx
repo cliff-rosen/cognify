@@ -12,9 +12,9 @@ interface LeftSidebarProps {
 }
 
 const LeftSidebar: React.FC<LeftSidebarProps> = ({
-    onSelectTopic,
     selectedTopicId,
     topics,
+    onSelectTopic,
     onTopicsChange,
     onEntryMoved
 }) => {
@@ -150,16 +150,16 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
 
     const handleDeleteTopic = async (topic: Topic) => {
         try {
-            await topicsApi.deleteTopic(topic.topic_id)
-            onTopicsChange(topics.filter(t => t.topic_id !== topic.topic_id))
+            await topicsApi.deleteTopic(topic.topic_id);
+            onTopicsChange(topics.filter(t => t.topic_id !== topic.topic_id));
             if (selectedTopicId === topic.topic_id) {
-                onSelectTopic(ALL_TOPICS_TOPIC_ID)
+                onSelectTopic(ALL_TOPICS_TOPIC_ID);
             }
-            setTopicToDelete(null)
+            setTopicToDelete(null);
         } catch (error) {
-            console.error('Error deleting topic:', error)
+            console.error('Error deleting topic:', error);
         }
-    }
+    };
 
     const handleDragOver = (e: DragEvent<HTMLDivElement>, topicId: number | null) => {
         if (!e.dataTransfer.types.includes('application/json')) {
@@ -415,15 +415,14 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                                                                 </button>
                                                                 <button
                                                                     onClick={(e) => {
-                                                                        e.stopPropagation()
-                                                                        setTopicToDelete(topic)
+                                                                        e.stopPropagation();
+                                                                        setTopicToDelete(topic);
                                                                     }}
                                                                     className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400"
                                                                     title="Delete topic"
                                                                 >
                                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                                                     </svg>
                                                                 </button>
                                                             </div>
@@ -482,6 +481,32 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                     </div>
                 )}
             </div>
+
+            {/* Delete Confirmation Modal */}
+            {topicToDelete && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm w-full mx-4">
+                        <h3 className="text-lg font-semibold mb-4 dark:text-white">Delete Topic</h3>
+                        <p className="text-gray-600 dark:text-gray-300 mb-6">
+                            Are you sure you want to delete "{topicToDelete.topic_name}"? This action cannot be undone.
+                        </p>
+                        <div className="flex justify-end gap-4">
+                            <button
+                                onClick={() => setTopicToDelete(null)}
+                                className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => handleDeleteTopic(topicToDelete)}
+                                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     )
 }

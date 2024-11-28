@@ -1,6 +1,6 @@
 import { BrowserRouter } from 'react-router-dom'
-import Home from './pages/Home'
-import Navbar from './components/Navbar'
+import EntriesWorkspace from './pages/EntriesWorkspace'
+import TopBar from './components/Topbar'
 import LeftSidebar from './components/home/LeftSidebar'
 import { ThemeProvider } from './context/ThemeContext'
 import { useAuth } from './context/AuthContext'
@@ -81,14 +81,14 @@ function App() {
           {/* Main Content */}
           <div className="flex-1 flex flex-col min-w-0">
             <div className="flex-none">
-              <Navbar 
+              <TopBar 
                 onEntryAdded={handleEntryAdded}
                 onTopicCreated={handleTopicCreated}
                 onTopicsChanged={refreshTopics}
               />
             </div>
             <div className="flex-1 overflow-hidden">
-              <Home 
+              <EntriesWorkspace 
                 selectedTopicId={selectedTopicId}
                 topics={topics}
                 setTopics={setTopics}

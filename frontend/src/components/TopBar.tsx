@@ -6,13 +6,13 @@ import { entriesApi, Entry } from '../lib/api/entriesApi'
 import { Topic, topicsApi, TopicSearchResult } from '../lib/api/topicsApi'
 import { useDebounce } from '../hooks/useDebounce'
 
-interface NavbarProps {
+interface TopBarProps {
     onEntryAdded: (entry: Entry) => void;
     onTopicCreated: (topic: Topic) => void;
     onTopicsChanged?: () => void;
 }
 
-export default function Navbar({ onEntryAdded, onTopicCreated, onTopicsChanged }: NavbarProps) {
+export default function TopBar({ onEntryAdded, onTopicCreated, onTopicsChanged }: TopBarProps) {
     const { isAuthenticated, logout, user } = useAuth()
     const { isDarkMode, toggleTheme } = useTheme()
 
@@ -169,7 +169,7 @@ export default function Navbar({ onEntryAdded, onTopicCreated, onTopicsChanged }
                                      dark:bg-gray-700 dark:text-white resize-none"
                             rows={1}
                         />
-                        
+
                         {/* Topic Selection */}
                         {selectedTopicName && (
                             <div className="absolute bottom-2 left-2">
