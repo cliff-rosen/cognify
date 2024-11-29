@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Topic, topicsApi, isUncategorizedTopic, ALL_TOPICS_TOPIC_ID, UncategorizedTopic } from '../../lib/api/topicsApi'
+import { Topic, topicsApi, isUncategorizedTopic, ALL_TOPICS_TOPIC_ID, UncategorizedTopic } from '../lib/api/topicsApi'
 import { DragEvent } from 'react'
-import { Entry, entriesApi } from '../../lib/api/entriesApi'
+import { Entry, entriesApi } from '../lib/api/entriesApi'
 
 interface LeftSidebarProps {
     onSelectTopic: (topicId: number | null) => void;

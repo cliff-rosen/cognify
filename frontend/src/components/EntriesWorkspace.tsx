@@ -1,5 +1,5 @@
-import CenterWorkspace from '../components/home/CenterWorkspace'
-import RightSidebar from '../components/home/RightSidebar'
+import CenterWorkspace from './CenterWorkspace'
+import RightSidebar from './RightSidebar'
 import { useState, useRef } from 'react'
 import { Entry } from '../lib/api/entriesApi'
 import { Topic, UNCATEGORIZED_TOPIC_ID, ALL_TOPICS_TOPIC_ID, AllTopicsTopicValue, UncategorizedTopicValue, UncategorizedTopic } from '../lib/api/topicsApi'
@@ -11,7 +11,7 @@ interface HomeProps {
     setTopics: (topics: (Topic | UncategorizedTopic)[]) => void;
 }
 
-export default function HomeComponent({ selectedTopicId, topics, setTopics }: HomeProps) {
+export default function EntriesWorkspace({ selectedTopicId, topics, setTopics }: HomeProps) {
     const centerWorkspaceRef = useRef<{ refreshEntries: () => void } | null>(null)
     const [showRightSidebar, setShowRightSidebar] = useState(true)
 

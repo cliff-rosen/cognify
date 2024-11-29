@@ -1,8 +1,8 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react'
-import { entriesApi, Entry } from '../../lib/api/entriesApi'
-import { Topic } from '../../lib/api/topicsApi'
+import { entriesApi, Entry } from '../lib/api/entriesApi'
+import { Topic } from '../lib/api/topicsApi'
 import { DragEvent } from 'react'
-import EntryList from '../entries/EntryList'
+import EntryList from './entries/EntryList'
 
 interface CenterWorkspaceProps {
     selectedTopicId: number | null;

@@ -4,11 +4,11 @@ import {
     Topic,
     UncategorizedTopic,
     AllTopicsTopic
-} from '../../lib/api/topicsApi';
-import { Entry, entriesApi } from '../../lib/api/entriesApi';
-import TaskFacilitator from '../tasks/TaskFacilitator';
-import ChatArea from '../chat/ChatArea';
-import CategorizeAssistant from '../categorize/CategorizeAssistant';
+} from '../lib/api/topicsApi';
+import { Entry, entriesApi } from '../lib/api/entriesApi';
+import TaskFacilitator from './tasks/TaskFacilitator';
+import ChatArea from './chat/ChatArea';
+import CategorizeAssistant from './categorize/CategorizeAssistant';
 
 interface RightSidebarProps {
     currentTopic: Topic | UncategorizedTopic | AllTopicsTopic | null;
