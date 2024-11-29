@@ -1,13 +1,13 @@
 import { BrowserRouter } from 'react-router-dom'
 import EntriesWorkspace from './components/EntriesWorkspace'
-import TopBar from './components/Topbar'
+import TopBar from './components/TopBar'
 import LeftSidebar from './components/LeftSidebar'
 import { ThemeProvider } from './context/ThemeContext'
 import { useAuth } from './context/AuthContext'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { setSessionExpiredHandler } from './lib/api'
-import { Topic, UNCATEGORIZED_TOPIC_ID, ALL_TOPICS_TOPIC_ID, UncategorizedTopic } from './lib/api/topicsApi'
-import { entriesApi, Entry } from './lib/api/entriesApi'
+import { Topic, ALL_TOPICS_TOPIC_ID, UncategorizedTopic } from './lib/api/topicsApi'
+import { Entry } from './lib/api/entriesApi'
 import { topicsApi } from './lib/api/topicsApi'
 import LoginForm from './components/auth/LoginForm'
 
@@ -16,6 +16,7 @@ function App() {
   const [topics, setTopics] = useState<(Topic | UncategorizedTopic)[]>([])
   const [selectedTopicId, setSelectedTopicId] = useState<number | null>(ALL_TOPICS_TOPIC_ID)
   const [isRegistering, setIsRegistering] = useState(false)
+  const entriesWorkspaceRef = useRef<{ refreshEntries: () => void } | null>(null);
 
   useEffect(() => {
     // Set up the session expired handler
@@ -26,8 +27,14 @@ function App() {
   }, [handleSessionExpired])
 
   const handleEntryAdded = (entry: Entry) => {
-    // Refresh topics if needed
+
     refreshTopics()
+
+    if (true || selectedTopicId === null ||
+      selectedTopicId === entry.topic_id ||
+      (selectedTopicId === UNCATEGORIZED_TOPIC_ID && entry.topic_id === null)) {
+      entriesWorkspaceRef.current?.refreshEntries()
+    }
   }
 
   const handleTopicCreated = (topic: Topic) => {
@@ -81,14 +88,15 @@ function App() {
           {/* Main Content */}
           <div className="flex-1 flex flex-col min-w-0">
             <div className="flex-none">
-              <TopBar 
+              <TopBar
                 onEntryAdded={handleEntryAdded}
                 onTopicCreated={handleTopicCreated}
                 onTopicsChanged={refreshTopics}
               />
             </div>
             <div className="flex-1 overflow-hidden">
-              <EntriesWorkspace 
+              <EntriesWorkspace
+                ref={entriesWorkspaceRef}
                 selectedTopicId={selectedTopicId}
                 topics={topics}
                 setTopics={setTopics}
