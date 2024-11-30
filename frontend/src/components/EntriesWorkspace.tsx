@@ -1,12 +1,11 @@
 import CenterWorkspace from './CenterWorkspace'
 import RightSidebar from './RightSidebar'
 import { useState, useRef, forwardRef, useImperativeHandle } from 'react'
-import { Entry } from '../lib/api/entriesApi'
 import { Topic, UNCATEGORIZED_TOPIC_ID, ALL_TOPICS_TOPIC_ID, AllTopicsTopicValue, UncategorizedTopicValue, UncategorizedTopic } from '../lib/api/topicsApi'
 import { topicsApi } from '../lib/api/topicsApi'
 
-interface HomeProps {
-    selectedTopicId: number | null;
+interface EntriesWorkspaceProps {
+    selectedTopic: Topic | UncategorizedTopic | null;
     topics: (Topic | UncategorizedTopic)[];
     setTopics: (topics: (Topic | UncategorizedTopic)[]) => void;
 }
@@ -15,8 +14,8 @@ export interface EntriesWorkspaceHandle {
     refreshEntries: () => void;
 }
 
-const EntriesWorkspace = forwardRef<EntriesWorkspaceHandle, HomeProps>(
-    ({ selectedTopicId, topics, setTopics }, ref) => {
+const EntriesWorkspace = forwardRef<EntriesWorkspaceHandle, EntriesWorkspaceProps>(
+    ({ selectedTopic, topics, setTopics }, ref) => {
         const centerWorkspaceRef = useRef<{ refreshEntries: () => void } | null>(null)
         const [showRightSidebar, setShowRightSidebar] = useState(true)
 
@@ -35,13 +34,13 @@ const EntriesWorkspace = forwardRef<EntriesWorkspaceHandle, HomeProps>(
         };
 
         const getCurrentTopic = () => {
-            if (selectedTopicId === ALL_TOPICS_TOPIC_ID) {
+            if (selectedTopic?.topic_id === ALL_TOPICS_TOPIC_ID) {
                 return AllTopicsTopicValue;
             }
-            if (selectedTopicId === UNCATEGORIZED_TOPIC_ID) {
+            if (selectedTopic?.topic_id === UNCATEGORIZED_TOPIC_ID) {
                 return UncategorizedTopicValue;
             }
-            return topics.find(t => t.topic_id === selectedTopicId) || null;
+            return topics.find(t => t.topic_id === selectedTopic?.topic_id) || null;
         };
 
         return (
@@ -53,7 +52,7 @@ const EntriesWorkspace = forwardRef<EntriesWorkspaceHandle, HomeProps>(
                         <div className="flex-1">
                             <CenterWorkspace
                                 ref={centerWorkspaceRef}
-                                selectedTopicId={selectedTopicId}
+                                selectedTopic={selectedTopic}
                                 onEntriesMoved={() => {
                                     centerWorkspaceRef.current?.refreshEntries();
                                 }}

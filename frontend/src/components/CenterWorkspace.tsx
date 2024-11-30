@@ -1,11 +1,11 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { entriesApi, Entry } from '../lib/api/entriesApi'
-import { Topic } from '../lib/api/topicsApi'
+import { Topic, UncategorizedTopic } from '../lib/api/topicsApi'
 import { DragEvent } from 'react'
 import EntryList from './entries/EntryList'
 
 interface CenterWorkspaceProps {
-    selectedTopicId: number | null;
+    selectedTopic: Topic | UncategorizedTopic | null;
     onEntriesMoved?: () => void;
     onTopicsChanged?: () => void;
 }
@@ -58,7 +58,7 @@ const EmptyStateMessage = () => (
 );
 
 const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
-    ({ selectedTopicId, onEntriesMoved, onTopicsChanged }, ref) => {
+    ({ selectedTopic, onEntriesMoved, onTopicsChanged }, ref) => {
         const [_selectedTopic, setSelectedTopic] = useState<Topic | null>(null)
         const [entries, setEntries] = useState<Entry[]>([])
         const [isLoading, setIsLoading] = useState(false)
@@ -67,16 +67,17 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
         const [entryToDelete, setEntryToDelete] = useState<Entry | null>(null)
 
         const fetchEntries = async () => {
+            console.log('CenterWorkspace fetchEntries', selectedTopic)
             try {
                 setIsLoading(true)
                 setError(null)
 
                 const fetchedEntries = await entriesApi.getEntries(
-                    selectedTopicId ? selectedTopicId : undefined
+                    selectedTopic ? selectedTopic.topic_id : undefined
                 )
                 setEntries(fetchedEntries)
 
-                if (!selectedTopicId) {
+                if (!selectedTopic) {
                     setSelectedTopic(null)
                 }
             } catch (err) {
@@ -89,7 +90,7 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
 
         useEffect(() => {
             fetchEntries()
-        }, [selectedTopicId])
+        }, [selectedTopic?.topic_id])
 
         useImperativeHandle(ref, () => ({
             refreshEntries: fetchEntries

@@ -6,7 +6,7 @@ import { ThemeProvider } from './context/ThemeContext'
 import { useAuth } from './context/AuthContext'
 import { useEffect, useState, useRef } from 'react'
 import { setSessionExpiredHandler } from './lib/api'
-import { Topic, ALL_TOPICS_TOPIC_ID, UncategorizedTopic, UNCATEGORIZED_TOPIC_ID } from './lib/api/topicsApi'
+import { Topic, UncategorizedTopic, AllTopicsTopic, AllTopicsTopicValue } from './lib/api/topicsApi'
 import { Entry } from './lib/api/entriesApi'
 import { topicsApi } from './lib/api/topicsApi'
 import LoginForm from './components/auth/LoginForm'
@@ -14,8 +14,7 @@ import LoginForm from './components/auth/LoginForm'
 function App() {
   const { handleSessionExpired, isAuthenticated, login, register, error } = useAuth()
   const [topics, setTopics] = useState<(Topic | UncategorizedTopic)[]>([])
-  const [selectedTopicId, setSelectedTopicId] = useState<number | null>(ALL_TOPICS_TOPIC_ID)
-  const [selectedTopic, setSelectedTopic] = useState<Topic | UncategorizedTopic | null>(null)
+  const [selectedTopic, setSelectedTopic] = useState<Topic | UncategorizedTopic | AllTopicsTopic >(AllTopicsTopicValue)
   const [isRegistering, setIsRegistering] = useState(false)
   const entriesWorkspaceRef = useRef<{ refreshEntries: () => void } | null>(null);
 
@@ -27,13 +26,15 @@ function App() {
     return () => setSessionExpiredHandler(() => { })
   }, [handleSessionExpired])
 
-  const handleEntryAdded = (entry: Entry) => {
+  const setSelectedTopicWrapper = (topic: Topic | UncategorizedTopic) => {
+    console.log('App setSelectedTopicWrapper', topic)
+    setSelectedTopic(topic)
+  }
 
+  const handleEntryAdded = (entry: Entry) => {
     refreshTopics()
 
-    if (true || selectedTopicId === null ||
-      selectedTopicId === entry.topic_id ||
-      (selectedTopicId === UNCATEGORIZED_TOPIC_ID && entry.topic_id === null)) {
+    if (selectedTopic.topic_id === entry.topic_id) {
       entriesWorkspaceRef.current?.refreshEntries()
     }
   }
@@ -76,7 +77,7 @@ function App() {
           {/* Left Sidebar - Remove padding */}
           <div className="w-64 flex-none">
             <LeftSidebar
-              onSelectTopic={setSelectedTopic}
+              onSelectTopic={setSelectedTopicWrapper}
               selectedTopic={selectedTopic}
               topics={topics}
               onTopicsChange={setTopics}
@@ -89,16 +90,16 @@ function App() {
           {/* Main Content */}
           <div className="flex-1 flex flex-col min-w-0">
             <div className="flex-none">
-              <TopBar
+              <TopBar 
                 onEntryAdded={handleEntryAdded}
                 onTopicCreated={handleTopicCreated}
                 onTopicsChanged={refreshTopics}
               />
             </div>
             <div className="flex-1 overflow-hidden">
-              <EntriesWorkspace
+              <EntriesWorkspace 
                 ref={entriesWorkspaceRef}
-                selectedTopicId={selectedTopicId}
+                selectedTopic={selectedTopic}
                 topics={topics}
                 setTopics={setTopics}
               />
