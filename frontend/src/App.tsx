@@ -6,7 +6,7 @@ import { ThemeProvider } from './context/ThemeContext'
 import { useAuth } from './context/AuthContext'
 import { useEffect, useState, useRef } from 'react'
 import { setSessionExpiredHandler } from './lib/api'
-import { Topic, ALL_TOPICS_TOPIC_ID, UncategorizedTopic } from './lib/api/topicsApi'
+import { Topic, ALL_TOPICS_TOPIC_ID, UncategorizedTopic, UNCATEGORIZED_TOPIC_ID } from './lib/api/topicsApi'
 import { Entry } from './lib/api/entriesApi'
 import { topicsApi } from './lib/api/topicsApi'
 import LoginForm from './components/auth/LoginForm'
@@ -15,6 +15,7 @@ function App() {
   const { handleSessionExpired, isAuthenticated, login, register, error } = useAuth()
   const [topics, setTopics] = useState<(Topic | UncategorizedTopic)[]>([])
   const [selectedTopicId, setSelectedTopicId] = useState<number | null>(ALL_TOPICS_TOPIC_ID)
+  const [selectedTopic, setSelectedTopic] = useState<Topic | UncategorizedTopic | null>(null)
   const [isRegistering, setIsRegistering] = useState(false)
   const entriesWorkspaceRef = useRef<{ refreshEntries: () => void } | null>(null);
 
@@ -75,8 +76,8 @@ function App() {
           {/* Left Sidebar - Remove padding */}
           <div className="w-64 flex-none">
             <LeftSidebar
-              onSelectTopic={setSelectedTopicId}
-              selectedTopicId={selectedTopicId}
+              onSelectTopic={setSelectedTopic}
+              selectedTopic={selectedTopic}
               topics={topics}
               onTopicsChange={setTopics}
               onEntryMoved={() => {

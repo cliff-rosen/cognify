@@ -4,15 +4,15 @@ import { DragEvent } from 'react'
 import { Entry, entriesApi } from '../lib/api/entriesApi'
 
 interface LeftSidebarProps {
-    onSelectTopic: (topicId: number | null) => void;
-    selectedTopicId: number | null;
+    onSelectTopic: (topic: Topic | UncategorizedTopic | null) => void;
+    selectedTopic: Topic | UncategorizedTopic | null;
     topics: (Topic | UncategorizedTopic)[];
     onTopicsChange: (topics: (Topic | UncategorizedTopic)[]) => void;
     onEntryMoved: () => void;
 }
 
 const LeftSidebar: React.FC<LeftSidebarProps> = ({
-    selectedTopicId,
+    selectedTopic,
     topics,
     onSelectTopic,
     onTopicsChange,
@@ -152,8 +152,8 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
         try {
             await topicsApi.deleteTopic(topic.topic_id);
             onTopicsChange(topics.filter(t => t.topic_id !== topic.topic_id));
-            if (selectedTopicId === topic.topic_id) {
-                onSelectTopic(ALL_TOPICS_TOPIC_ID);
+            if (selectedTopic.topic_id === topic.topic_id) {
+                onSelectTopic(top;
             }
             setTopicToDelete(null);
         } catch (error) {
