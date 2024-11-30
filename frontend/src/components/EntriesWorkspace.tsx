@@ -11,6 +11,10 @@ interface HomeProps {
     setTopics: (topics: (Topic | UncategorizedTopic)[]) => void;
 }
 
+export interface EntriesWorkspaceHandle {
+    refreshEntries: () => void;
+}
+
 const EntriesWorkspace = forwardRef<EntriesWorkspaceHandle, HomeProps>(
     ({ selectedTopicId, topics, setTopics }, ref) => {
         const centerWorkspaceRef = useRef<{ refreshEntries: () => void } | null>(null)

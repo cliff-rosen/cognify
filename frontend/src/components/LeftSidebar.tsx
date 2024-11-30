@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Topic, topicsApi, isUncategorizedTopic, ALL_TOPICS_TOPIC_ID, UncategorizedTopic } from '../lib/api/topicsApi'
+import { Topic, topicsApi, isUncategorizedTopic, ALL_TOPICS_TOPIC_ID, UncategorizedTopic, AllTopicsTopicValue } from '../lib/api/topicsApi'
 import { DragEvent } from 'react'
 import { Entry, entriesApi } from '../lib/api/entriesApi'
 
@@ -152,8 +152,8 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
         try {
             await topicsApi.deleteTopic(topic.topic_id);
             onTopicsChange(topics.filter(t => t.topic_id !== topic.topic_id));
-            if (selectedTopic.topic_id === topic.topic_id) {
-                onSelectTopic(top;
+            if (selectedTopic?.topic_id === topic.topic_id) {
+                onSelectTopic(topic);
             }
             setTopicToDelete(null);
         } catch (error) {
@@ -295,8 +295,8 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                                             <div
                                                 className={`flex items-center p-2 mx-2 rounded-lg cursor-pointer  {/* Added mx-2 for side padding */}
                                                       hover:bg-gray-100 dark:hover:bg-gray-700
-                                                      ${selectedTopicId === ALL_TOPICS_TOPIC_ID ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
-                                                onClick={() => onSelectTopic(ALL_TOPICS_TOPIC_ID)}
+                                                      ${selectedTopic?.topic_id === ALL_TOPICS_TOPIC_ID ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
+                                                onClick={() => onSelectTopic(AllTopicsTopicValue)}
                                                 onDragOver={(e) => handleDragOver(e, ALL_TOPICS_TOPIC_ID)}
                                                 onDragLeave={handleDragLeave}
                                                 onDrop={(e) => handleDrop(e, ALL_TOPICS_TOPIC_ID)}
@@ -368,14 +368,14 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                                                     <div
                                                         className={`flex items-center justify-between p-2 rounded-lg cursor-pointer
                                                               hover:bg-gray-100 dark:hover:bg-gray-700
-                                                              ${selectedTopicId === topic.topic_id ? 'bg-gray-100 dark:bg-gray-700' : ''}
+                                                              ${selectedTopic?.topic_id === topic.topic_id ? 'bg-gray-100 dark:bg-gray-700' : ''}
                                                               ${isUncategorizedTopic(topic) ? 'border-t border-b border-gray-200 dark:border-gray-700' : ''}`}
                                                         onDragOver={(e) => handleDragOver(e, topic.topic_id)}
                                                         onDragLeave={handleDragLeave}
                                                         onDrop={(e) => handleDrop(e, topic.topic_id)}
                                                     >
                                                         <span
-                                                            onClick={() => onSelectTopic(topic.topic_id)}
+                                                            onClick={() => onSelectTopic(topic)}
                                                             className="flex-1 text-gray-700 dark:text-gray-300 flex justify-between items-center"
                                                         >
                                                             <span className="flex items-center gap-2">
