@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Topic, topicsApi, isUncategorizedTopic, ALL_TOPICS_TOPIC_ID, UncategorizedTopic, AllTopicsTopicValue } from '../lib/api/topicsApi'
+import { Topic, topicsApi, isUncategorizedTopic, ALL_TOPICS_TOPIC_ID, UncategorizedTopic, AllTopicsTopicValue, AllTopicsTopic } from '../lib/api/topicsApi'
 import { DragEvent } from 'react'
 import { Entry, entriesApi } from '../lib/api/entriesApi'
 
 interface LeftSidebarProps {
-    onSelectTopic: (topic: Topic | UncategorizedTopic | null) => void;
-    selectedTopic: Topic | UncategorizedTopic | null;
+    onSelectTopic: (topic: Topic | UncategorizedTopic | AllTopicsTopic) => void;
+    selectedTopic: Topic | UncategorizedTopic | AllTopicsTopic;
     topics: (Topic | UncategorizedTopic)[];
     onTopicsChange: (topics: (Topic | UncategorizedTopic)[]) => void;
     onEntryMoved: () => void;

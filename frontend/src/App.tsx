@@ -26,15 +26,18 @@ function App() {
     return () => setSessionExpiredHandler(() => { })
   }, [handleSessionExpired])
 
-  const setSelectedTopicWrapper = (topic: Topic | UncategorizedTopic) => {
+  const setSelectedTopicWrapper = (topic: Topic | UncategorizedTopic | AllTopicsTopic) => {
     console.log('App setSelectedTopicWrapper', topic)
     setSelectedTopic(topic)
   }
 
   const handleEntryAdded = (entry: Entry) => {
+    console.log('App handleEntryAdded', entry)
+    console.log('App selectedTopic', selectedTopic)
+
     refreshTopics()
 
-    if (selectedTopic.topic_id === entry.topic_id) {
+    if (selectedTopic === AllTopicsTopicValue || selectedTopic.topic_id === entry.topic_id) {
       entriesWorkspaceRef.current?.refreshEntries()
     }
   }

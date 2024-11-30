@@ -3,7 +3,7 @@ import { useTheme } from '@/context/ThemeContext'
 import { MoonIcon, SunIcon } from '@heroicons/react/24/outline'
 import { useState, useRef, useEffect } from 'react'
 import { entriesApi, Entry } from '../lib/api/entriesApi'
-import { Topic, topicsApi, TopicSearchResult } from '../lib/api/topicsApi'
+import { Topic, topicsApi, TopicSearchResult, UNCATEGORIZED_TOPIC_ID } from '../lib/api/topicsApi'
 import { useDebounce } from '../hooks/useDebounce'
 
 interface TopBarProps {
@@ -77,6 +77,9 @@ export default function TopBar({ onEntryAdded, onTopicCreated, onTopicsChanged }
                 content: entryText.trim(),
                 topic_id: selectedTopicId  // This can be null for uncategorized entries
             })
+            if (entry.topic_id === null) {
+                entry.topic_id = UNCATEGORIZED_TOPIC_ID
+            }
             onEntryAdded(entry)
             setEntryText('')
             setSelectedTopicId(null)

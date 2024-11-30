@@ -1,11 +1,11 @@
 import CenterWorkspace from './CenterWorkspace'
 import RightSidebar from './RightSidebar'
 import { useState, useRef, forwardRef, useImperativeHandle } from 'react'
-import { Topic, UNCATEGORIZED_TOPIC_ID, ALL_TOPICS_TOPIC_ID, AllTopicsTopicValue, UncategorizedTopicValue, UncategorizedTopic } from '../lib/api/topicsApi'
+import { Topic, UNCATEGORIZED_TOPIC_ID, ALL_TOPICS_TOPIC_ID, AllTopicsTopicValue, UncategorizedTopicValue, UncategorizedTopic, AllTopicsTopic } from '../lib/api/topicsApi'
 import { topicsApi } from '../lib/api/topicsApi'
 
 interface EntriesWorkspaceProps {
-    selectedTopic: Topic | UncategorizedTopic | null;
+    selectedTopic: Topic | UncategorizedTopic | AllTopicsTopic;
     topics: (Topic | UncategorizedTopic)[];
     setTopics: (topics: (Topic | UncategorizedTopic)[]) => void;
 }
