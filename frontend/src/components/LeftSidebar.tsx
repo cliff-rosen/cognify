@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Topic, topicsApi, isUncategorizedTopic, ALL_TOPICS_TOPIC_ID, UncategorizedTopic, AllTopicsTopic, AllTopicsTopicValue } from '../lib/api/topicsApi'
 import { DragEvent } from 'react'
-import { Entry } from '../lib/api/entriesApi'
+import { Entry, entriesApi } from '../lib/api/entriesApi'
 import { PlusIcon } from '@heroicons/react/24/outline'
 import EntryForm from './EntryForm'
 
@@ -257,10 +257,10 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
         <>
             {/* Wrapper div to contain both hot zone and sidebar */}
             <div className="relative h-full">
-                {/* Add Entry Button */}
+                {/* Add Entry Button - Moved further right */}
                 <button
                     onClick={() => setShowEntryForm(true)}
-                    className="absolute top-4 right-16 z-30 p-2 rounded-full bg-blue-600 text-white hover:bg-blue-700 shadow-lg"
+                    className="absolute top-4 right-4 z-30 p-2 rounded-full bg-blue-600 text-white hover:bg-blue-700 shadow-lg"
                     title="Add new entry"
                 >
                     <PlusIcon className="w-5 h-5" />
