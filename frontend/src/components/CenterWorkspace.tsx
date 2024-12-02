@@ -1,11 +1,11 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { entriesApi, Entry } from '../lib/api/entriesApi'
-import { Topic, UncategorizedTopic } from '../lib/api/topicsApi'
+import { AllTopicsTopic, Topic, UncategorizedTopic } from '../lib/api/topicsApi'
 import { DragEvent } from 'react'
 import EntryList from './entries/EntryList'
 
 interface CenterWorkspaceProps {
-    selectedTopic: Topic | UncategorizedTopic | null;
+    selectedTopic: Topic | UncategorizedTopic | AllTopicsTopic;
     onEntriesMoved?: () => void;
     onTopicsChanged?: () => void;
 }
@@ -63,7 +63,6 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
         const [entries, setEntries] = useState<Entry[]>([])
         const [isLoading, setIsLoading] = useState(false)
         const [error, setError] = useState<string | null>(null)
-        const [activeTab, setActiveTab] = useState<'entries' | 'summary' | 'notes'>('entries')
         const [entryToDelete, setEntryToDelete] = useState<Entry | null>(null)
 
         const fetchEntries = async () => {
@@ -202,79 +201,26 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
 
         return (
             <div className="h-full flex flex-col">
-                {/* Content Area */}
-                <div className="flex-none border-b border-gray-200 dark:border-gray-700">
-                    <div className="px-6">
-                        <div className="flex space-x-8">
-                            <button
-                                onClick={() => setActiveTab('entries')}
-                                className={`py-4 px-2 relative ${activeTab === 'entries'
-                                    ? 'text-blue-500 dark:text-blue-400'
-                                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-                                    }`}
-                            >
-                                <span>Entries</span>
-                                {activeTab === 'entries' && (
-                                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 dark:bg-blue-400"></div>
-                                )}
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('summary')}
-                                className={`py-4 px-2 relative ${activeTab === 'summary'
-                                    ? 'text-blue-500 dark:text-blue-400'
-                                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-                                    }`}
-                            >
-                                <span>Summary</span>
-                                {activeTab === 'summary' && (
-                                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 dark:bg-blue-400"></div>
-                                )}
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('notes')}
-                                className={`py-4 px-2 relative ${activeTab === 'notes'
-                                    ? 'text-blue-500 dark:text-blue-400'
-                                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-                                    }`}
-                            >
-                                <span>Notes</span>
-                                {activeTab === 'notes' && (
-                                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 dark:bg-blue-400"></div>
-                                )}
-                            </button>
-                        </div>
-                    </div>
+                {/* Topic Header */}
+                <div className="flex-none px-12 py-4">
+                    <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                        {selectedTopic.topic_name || 'All Entries'}
+                    </h1>
                 </div>
 
                 {/* Content Area */}
-                <div className="p-4 flex-1 overflow-y-auto">
-                    {activeTab === 'entries' && (
-                        entries.length === 0 ? (
-                            <EmptyStateMessage />
-                        ) : (
-                            <EntryList
-                                entries={entries}
-                                onDragStart={handleDragStart}
-                                onDragEnd={handleDragEnd}
-                                onDelete={(entry: Entry) => setEntryToDelete(entry)}
-                                onEdit={handleEditEntry}
-                                emptyMessage="No entries in this topic"
-                            />
-                        )
-                    )}
-                    {activeTab === 'summary' && (
-                        <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
-                            <p className="text-gray-500 dark:text-gray-400">
-                                Summary view coming soon...
-                            </p>
-                        </div>
-                    )}
-                    {activeTab === 'notes' && (
-                        <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
-                            <p className="text-gray-500 dark:text-gray-400">
-                                Notes view coming soon...
-                            </p>
-                        </div>
+                <div className="flex-1 overflow-y-auto px-12 py-4">
+                    {entries.length === 0 ? (
+                        <EmptyStateMessage />
+                    ) : (
+                        <EntryList
+                            entries={entries}
+                            onDragStart={handleDragStart}
+                            onDragEnd={handleDragEnd}
+                            onDelete={(entry: Entry) => setEntryToDelete(entry)}
+                            onEdit={handleEditEntry}
+                            emptyMessage="No entries in this topic"
+                        />
                     )}
                 </div>
 

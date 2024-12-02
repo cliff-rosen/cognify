@@ -14,7 +14,7 @@ import LoginForm from './components/auth/LoginForm'
 function App() {
   const { handleSessionExpired, isAuthenticated, login, register, error } = useAuth()
   const [topics, setTopics] = useState<(Topic | UncategorizedTopic)[]>([])
-  const [selectedTopic, setSelectedTopic] = useState<Topic | UncategorizedTopic | AllTopicsTopic >(AllTopicsTopicValue)
+  const [selectedTopic, setSelectedTopic] = useState<Topic | UncategorizedTopic | AllTopicsTopic>(AllTopicsTopicValue)
   const [isRegistering, setIsRegistering] = useState(false)
   const entriesWorkspaceRef = useRef<{ refreshEntries: () => void } | null>(null);
 
@@ -85,22 +85,18 @@ function App() {
               topics={topics}
               onTopicsChange={setTopics}
               onEntryMoved={() => {
-                // Handle entry moved
+                entriesWorkspaceRef.current?.refreshEntries();
               }}
+              onEntryAdded={handleEntryAdded}
+              onTopicCreated={handleTopicCreated}
             />
           </div>
 
           {/* Main Content */}
-          <div className="flex-1 flex flex-col min-w-0">
-            <div className="flex-none">
-              <TopBar 
-                onEntryAdded={handleEntryAdded}
-                onTopicCreated={handleTopicCreated}
-                onTopicsChanged={refreshTopics}
-              />
-            </div>
+          <div className="flex-1 flex flex-col min-w-0 bg-white dark:bg-gray-900">
+            <TopBar />
             <div className="flex-1 overflow-hidden">
-              <EntriesWorkspace 
+              <EntriesWorkspace
                 ref={entriesWorkspaceRef}
                 selectedTopic={selectedTopic}
                 topics={topics}
