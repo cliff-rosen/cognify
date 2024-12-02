@@ -415,7 +415,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                                 ×
                             </button>
                             <h3 className="text-lg font-semibold mb-4 dark:text-white">Add New Entry</h3>
-                            
+
                             <div className="relative">
                                 <textarea
                                     ref={inputRef}
