@@ -194,7 +194,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
 
                     {/* Topic Suggestions Dropdown */}
                     {showSuggestions && suggestions.length > 0 && (
-                        <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg 
+                        <div className="absolute z-10 w-2/3 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg 
                                     border border-gray-200 dark:border-gray-700">
                             <div className="p-2">
                                 {suggestions.map((topic) => (
@@ -231,7 +231,7 @@ const EntryForm: React.FC<EntryFormProps> = ({
 
                     {/* New Topic Form */}
                     {showNewTopicForm && (
-                        <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg 
+                        <div className="absolute z-10 w-2/3 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg 
                                     border border-gray-200 dark:border-gray-700">
                             <div className="p-4">
                                 <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
