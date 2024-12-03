@@ -74,6 +74,7 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
         const [isInPlaceCategorizing, setIsInPlaceCategorizing] = useState(false);
         const [isTaskHelpActive, setIsTaskHelpActive] = useState(false);
         const [isAnalyzingTasks, setIsAnalyzingTasks] = useState(false);
+        const [taskAnalysisResults, setTaskAnalysisResults] = useState<TaskAnalysis[] | null>(null);
 
         const fetchEntries = async () => {
             console.log('CenterWorkspace fetchEntries', selectedTopic)
@@ -346,15 +347,21 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
         const handleExitTaskMode = () => {
             setIsTaskHelpActive(false);
             setSelectedEntries(new Set());
+            setTaskAnalysisResults(null);
         };
 
         const handleAnalyzeTasks = async () => {
-            setIsAnalyzingTasks(true);
-            // TODO: Implement task analysis logic
-            //temporily use setTimeout to simulate a delay
-            setTimeout(() => {
+            try {
+                setIsAnalyzingTasks(true);
+                const selectedEntryIds = Array.from(selectedEntries);
+                const results = await entriesApi.analyzeFacilitateOptions(selectedEntryIds);
+                setTaskAnalysisResults(results.tasks);
+            } catch (error) {
+                console.error('Error analyzing tasks:', error);
+                // TODO: Show error notification
+            } finally {
                 setIsAnalyzingTasks(false);
-            }, 3000);
+            }
         };
 
         if (isLoading) {
@@ -441,6 +448,7 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                             onCancel={handleExitTaskMode}
                             isLoading={isAnalyzingTasks}
                             onAnalyzeTasks={handleAnalyzeTasks}
+                            analysisResults={taskAnalysisResults || undefined}
                         />
                     ) : isCategorizing ? (
                         <CategorizeEntryList

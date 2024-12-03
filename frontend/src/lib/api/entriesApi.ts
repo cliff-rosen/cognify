@@ -18,6 +18,33 @@ export interface EntryUpdate {
     topic_id?: number | null;
 }
 
+export interface FacilitateOption {
+    option_type: string;
+    description: string;
+    confidence_score: number;
+    requirements: string[];
+    estimated_impact: string;
+}
+
+export interface TaskAnalysis {
+    entry_id: number;
+    content: string;
+    facilitate_options: FacilitateOption[];
+    complexity_score: number;
+    priority_score: number;
+}
+
+export interface FacilitateAnalysisResponse {
+    tasks: TaskAnalysis[];
+    overall_summary: string;
+    metadata: {
+        analyzed_entries: number;
+        analysis_timestamp: string;
+        average_complexity: number;
+        average_priority: number;
+    };
+}
+
 export const entriesApi = {
     getEntries: async (topicId?: number): Promise<Entry[]> => {
         const response = await api.get('/api/entries', {
@@ -45,6 +72,11 @@ export const entriesApi = {
             topic_id: newTopicId
         })
         return response.data
+    },
+
+    analyzeFacilitateOptions: async (entryIds: number[]): Promise<FacilitateAnalysisResponse> => {
+        const response = await api.post('/api/entries/analyze-facilitate', { entry_ids: entryIds });
+        return response.data;
     },
 
     formatEntryTimestamp: formatTimestamp,

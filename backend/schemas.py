@@ -4,9 +4,11 @@ from typing import Optional, List
 
 ##### USER SCHEMA #####
 
+
 class UserBase(BaseModel):
     """Base schema for user data"""
     email: EmailStr = Field(description="User's email address")
+
 
 class UserCreate(UserBase):
     """Schema for creating a new user"""
@@ -15,6 +17,7 @@ class UserCreate(UserBase):
         description="User's password",
         example="securepassword123"
     )
+
 
 class UserResponse(UserBase):
     """Schema for user responses"""
@@ -32,11 +35,15 @@ class Token(BaseModel):
     token_type: str = Field(default="bearer", description="Type of token")
     username: str = Field(description="User's username")
 
+
 class TokenData(BaseModel):
     """Schema for token payload data"""
-    email: Optional[str] = Field(default=None, description="User's email from token")
-    user_id: Optional[int] = Field(default=None, description="User's ID from token")
-    username: Optional[str] = Field(default=None, description="User's username")
+    email: Optional[str] = Field(
+        default=None, description="User's email from token")
+    user_id: Optional[int] = Field(
+        default=None, description="User's ID from token")
+    username: Optional[str] = Field(
+        default=None, description="User's username")
 
 
 ##### TOPIC SCHEMA #####
@@ -50,6 +57,7 @@ class TopicCreate(BaseModel):
         example="Machine Learning Fundamentals"
     )
 
+
 class TopicUpdate(BaseModel):
     """Schema for updating a topic (PATCH)"""
     topic_name: Optional[str] = Field(
@@ -60,21 +68,26 @@ class TopicUpdate(BaseModel):
         example="Advanced Machine Learning"
     )
 
+
 class TopicResponse(BaseModel):
     """Schema for topic responses"""
     topic_id: int = Field(description="Unique identifier for the topic")
     user_id: int = Field(description="ID of the user who owns this topic")
     topic_name: str = Field(description="Name of the topic")
     creation_date: datetime = Field(description="When the topic was created")
-    entry_count: int = Field(description="Number of entries in this topic", default=0)
-    is_uncategorized: bool = Field(default=False, description="Whether this is the uncategorized topic")
+    entry_count: int = Field(
+        description="Number of entries in this topic", default=0)
+    is_uncategorized: bool = Field(
+        default=False, description="Whether this is the uncategorized topic")
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class TopicList(BaseModel):
     """Schema for paginated topic lists"""
     items: List[TopicResponse]
     total: int = Field(ge=0)
+
 
 class TopicSearchResponse(TopicResponse):
     score: float
@@ -82,6 +95,7 @@ class TopicSearchResponse(TopicResponse):
     is_new_topic: bool = False
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class TopicSuggestionResponse(BaseModel):
     suggested_name: str
@@ -101,6 +115,7 @@ class EntryCreate(BaseModel):
         example=1
     )
 
+
 class EntryUpdate(BaseModel):
     """Schema for updating an entry (PATCH)"""
     content: Optional[str] = None
@@ -109,15 +124,18 @@ class EntryUpdate(BaseModel):
     class Config:
         from_attributes = True
 
+
 class EntryResponse(BaseModel):
     """Schema for entry responses"""
     entry_id: int = Field(description="Unique identifier for the entry")
     user_id: int = Field(description="ID of the user who created this entry")
-    topic_id: Optional[int] = Field(description="ID of the associated topic, if any")
+    topic_id: Optional[int] = Field(
+        description="ID of the associated topic, if any")
     content: str = Field(description="The content of the entry")
     creation_date: datetime = Field(description="When the entry was created")
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class EntryList(BaseModel):
     """Schema for paginated entry lists"""
@@ -138,15 +156,18 @@ class ProposedEntry(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class ProposedTopic(BaseModel):
     """Schema for a proposed topic in auto-categorization"""
-    topic_id: Optional[int] = Field(description="ID if existing topic, None if new")
+    topic_id: Optional[int] = Field(
+        description="ID if existing topic, None if new")
     topic_name: str
     is_new: bool = Field(description="Whether this is a newly suggested topic")
     entries: List[ProposedEntry]
     confidence_score: float
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class AutoCategorizeRequest(BaseModel):
     """Schema for the auto-categorization analysis request"""
@@ -159,20 +180,24 @@ class AutoCategorizeRequest(BaseModel):
         description="List of topic IDs that should be preserved"
     )
 
+
 class AutoCategorizeResponse(BaseModel):
     """Schema for the auto-categorization analysis response"""
     proposed_topics: List[ProposedTopic]
     uncategorized_entries: List[ProposedEntry]
     instructions_used: Optional[str] = None
-    
+
     model_config = ConfigDict(from_attributes=True)
+
 
 class ApplyCategorizeRequest(BaseModel):
     proposed_topics: List[ProposedTopic]
     uncategorized_entries: List[ProposedEntry]
 
+
 class QuickCategorizeRequest(BaseModel):
     entry_ids: List[int]
+
 
 class CategorySuggestion(BaseModel):
     topic_id: Optional[int] = None
@@ -180,10 +205,12 @@ class CategorySuggestion(BaseModel):
     is_new: bool
     confidence_score: float
 
+
 class EntryProposal(BaseModel):
     entry_id: int
     content: str
     suggestions: List[CategorySuggestion]
+
 
 class QuickCategorizeResponse(BaseModel):
     proposals: List[EntryProposal]
@@ -195,6 +222,7 @@ class TopicSuggestion(BaseModel):
     topic_name: str
     confidence: float
 
+
 class TopicAssignment(BaseModel):
     """Entry assignment details for a topic"""
     entry_id: int
@@ -202,11 +230,13 @@ class TopicAssignment(BaseModel):
     confidence: float
     alternative_topics: List[TopicSuggestion]
 
+
 class ExistingTopicAssignment(BaseModel):
     """Assignments to an existing topic"""
     topic_id: int
     topic_name: str
     entries: List[TopicAssignment]
+
 
 class NewTopicProposal(BaseModel):
     """Proposed new topic with entries"""
@@ -216,12 +246,14 @@ class NewTopicProposal(BaseModel):
     similar_existing_topics: List[TopicSuggestion]
     entries: List[TopicAssignment]
 
+
 class UnassignedEntry(BaseModel):
     """Entry that couldn't be confidently categorized"""
     entry_id: int
     content: str
     reason: str
     top_suggestions: List[TopicSuggestion]
+
 
 class CategoryMetadata(BaseModel):
     """Metadata about the categorization process"""
@@ -232,11 +264,13 @@ class CategoryMetadata(BaseModel):
     average_confidence: float
     processing_time_ms: int
 
+
 class QuickCategorizeUncategorizedRequest(BaseModel):
     """Request parameters for quick categorization of uncategorized entries"""
     min_confidence_threshold: Optional[float] = Field(default=0.7, ge=0, le=1)
     max_new_topics: Optional[int] = Field(default=3, ge=0, le=10)
     instructions: Optional[str] = Field(default=None)
+
 
 class QuickCategorizeUncategorizedResponse(BaseModel):
     """Response for quick categorization of uncategorized entries"""
@@ -246,7 +280,44 @@ class QuickCategorizeUncategorizedResponse(BaseModel):
     metadata: CategoryMetadata
 
 
-    
+##### FACILITATE OPTIONS SCHEMA #####
+
+class FacilitateOption(BaseModel):
+    """A single facilitation option for a task"""
+    option_type: str = Field(
+        description="Type of facilitation (e.g., 'break_down', 'delegate', 'automate')")
+    description: str = Field(
+        description="Description of the facilitation option")
+    confidence_score: float = Field(
+        ge=0, le=1, description="Confidence score for this option")
+    requirements: List[str] = Field(
+        description="Requirements or prerequisites for this option")
+    estimated_impact: str = Field(
+        description="Estimated impact of implementing this option")
+
+
+class TaskAnalysis(BaseModel):
+    """Analysis for a single task entry"""
+    entry_id: int = Field(description="ID of the analyzed entry")
+    content: str = Field(description="Content of the entry")
+    facilitate_options: List[FacilitateOption] = Field(
+        description="List of facilitation options")
+    complexity_score: float = Field(
+        ge=0, le=1, description="Estimated complexity of the task")
+    priority_score: float = Field(
+        ge=0, le=1, description="Suggested priority level")
+
+
+class FacilitateAnalysisResponse(BaseModel):
+    """Response for the facilitate options analysis"""
+    tasks: List[TaskAnalysis] = Field(description="List of analyzed tasks")
+    overall_summary: str = Field(description="Overall summary of the analysis")
+    metadata: dict = Field(
+        description="Additional metadata about the analysis")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 ##### CHAT SCHEMA #####
 class ChatMessageCreate(BaseModel):
     """Schema for creating a new chat message"""
@@ -263,27 +334,34 @@ class ChatMessageCreate(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class ChatMessageResponse(BaseModel):
     """Schema for chat message responses"""
     message_id: int = Field(description="Unique identifier for the message")
-    thread_id: int = Field(description="ID of the thread this message belongs to")
-    user_id: int = Field(description="ID of the user who sent/received this message")
+    thread_id: int = Field(
+        description="ID of the thread this message belongs to")
+    user_id: int = Field(
+        description="ID of the user who sent/received this message")
     content: str = Field(description="The content of the message")
-    role: str = Field(description="Role of the message sender (user/assistant/system)")
+    role: str = Field(
+        description="Role of the message sender (user/assistant/system)")
     timestamp: datetime = Field(description="When the message was created")
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class ChatMessageList(BaseModel):
     """Schema for paginated chat message lists"""
     items: List[ChatMessageResponse]
     total: int = Field(ge=0)
 
+
 class ChatThreadCreate(BaseModel):
     topic_id: Optional[int] = None
     title: str
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class ChatThreadResponse(BaseModel):
     thread_id: int
@@ -295,6 +373,7 @@ class ChatThreadResponse(BaseModel):
     status: str
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class ChatThreadUpdate(BaseModel):
     """Schema for updating a chat thread"""
