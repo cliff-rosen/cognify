@@ -12,6 +12,7 @@
   "dependencies": {
     "@heroicons/react": "^2.1.5",
     "@hookform/resolvers": "^3.9.1",
+    "@tabler/icons-react": "^3.24.0",
     "@tanstack/react-query": "^5.61.3",
     "@types/react-syntax-highlighter": "^15.5.13",
     "axios": "^1.7.7",

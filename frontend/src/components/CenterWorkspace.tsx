@@ -3,6 +3,7 @@ import { entriesApi, Entry } from '../lib/api/entriesApi'
 import { AllTopicsTopic, Topic, UncategorizedTopic } from '../lib/api/topicsApi'
 import { DragEvent } from 'react'
 import EntryList from './entries/EntryList'
+import { IconCategory, IconListCheck } from '@tabler/icons-react';
 
 interface CenterWorkspaceProps {
     selectedTopic: Topic | UncategorizedTopic | AllTopicsTopic;
@@ -202,10 +203,41 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
         return (
             <div className="h-full flex flex-col">
                 {/* Topic Header */}
-                <div className="flex-none px-12 py-4">
+                <div className="flex-none px-12 py-4 flex items-center justify-between">
                     <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
                         {selectedTopic.topic_name || 'All Entries'}
                     </h1>
+
+                    <div className="flex items-center space-x-2">
+                        <button
+                            className="inline-flex items-center px-3 py-1.5 text-sm font-medium 
+                                text-gray-800 dark:text-gray-100
+                                bg-gradient-to-b from-amber-50 to-amber-100 dark:from-gray-700 dark:to-gray-800
+                                hover:from-amber-100 hover:to-amber-200 dark:hover:from-gray-600 dark:hover:to-gray-700
+                                border border-amber-200 dark:border-gray-600
+                                shadow-sm hover:shadow
+                                rounded-md
+                                transition-all duration-150 ease-in-out
+                                ring-1 ring-amber-200/50 dark:ring-gray-500/50"
+                        >
+                            <IconCategory className="w-4 h-4 mr-1.5 text-amber-600 dark:text-amber-400" />
+                            AI Categorization Help
+                        </button>
+                        <button
+                            className="inline-flex items-center px-3 py-1.5 text-sm font-medium 
+                                text-gray-800 dark:text-gray-100
+                                bg-gradient-to-b from-slate-50 to-slate-100 dark:from-gray-700 dark:to-gray-800
+                                hover:from-slate-100 hover:to-slate-200 dark:hover:from-gray-600 dark:hover:to-gray-700
+                                border border-slate-200 dark:border-gray-600
+                                shadow-sm hover:shadow
+                                rounded-md
+                                transition-all duration-150 ease-in-out
+                                ring-1 ring-slate-200/50 dark:ring-gray-500/50"
+                        >
+                            <IconListCheck className="w-4 h-4 mr-1.5 text-slate-600 dark:text-slate-400" />
+                            AI Task Help
+                        </button>
+                    </div>
                 </div>
 
                 {/* Content Area */}
