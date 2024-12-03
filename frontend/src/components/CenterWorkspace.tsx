@@ -4,6 +4,9 @@ import { AllTopicsTopic, Topic, UncategorizedTopic } from '../lib/api/topicsApi'
 import { DragEvent } from 'react'
 import EntryList from './entries/EntryList'
 import { IconCategory, IconListCheck } from '@tabler/icons-react';
+import CategorizeEntryList from './categorize/CategorizeEntryList';
+import TaskEntryList from './tasks/TaskEntryList';
+import { topicsApi, QuickCategorizeUncategorizedResponse, QuickCategorizeUncategorizedRequest } from '../lib/api/topicsApi';
 
 interface CenterWorkspaceProps {
     selectedTopic: Topic | UncategorizedTopic | AllTopicsTopic;
@@ -65,6 +68,12 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
         const [isLoading, setIsLoading] = useState(false)
         const [error, setError] = useState<string | null>(null)
         const [entryToDelete, setEntryToDelete] = useState<Entry | null>(null)
+        const [isCategorizing, setIsCategorizing] = useState(false);
+        const [categorySuggestions, setCategorySuggestions] = useState<QuickCategorizeUncategorizedResponse | null>(null);
+        const [selectedEntries, setSelectedEntries] = useState<Set<number>>(new Set());
+        const [isInPlaceCategorizing, setIsInPlaceCategorizing] = useState(false);
+        const [isTaskHelpActive, setIsTaskHelpActive] = useState(false);
+        const [isAnalyzingTasks, setIsAnalyzingTasks] = useState(false);
 
         const fetchEntries = async () => {
             console.log('CenterWorkspace fetchEntries', selectedTopic)
@@ -173,6 +182,181 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
             }
         };
 
+        const handleEnterCategorizeMode = () => {
+            setIsCategorizing(true);
+            setSelectedEntries(new Set());
+            setCategorySuggestions(null);
+        };
+
+        const handleExitCategorizeMode = () => {
+            setIsCategorizing(false);
+            setSelectedEntries(new Set());
+            setCategorySuggestions(null);
+        };
+
+        const handleEntrySelect = (entryId: number) => {
+            const newSelected = new Set(selectedEntries);
+            if (newSelected.has(entryId)) {
+                newSelected.delete(entryId);
+            } else {
+                newSelected.add(entryId);
+            }
+            setSelectedEntries(newSelected);
+        };
+
+        const handleSelectAll = () => {
+            if (selectedEntries.size === entries.length) {
+                setSelectedEntries(new Set());
+            } else {
+                setSelectedEntries(new Set(entries.map(e => e.entry_id)));
+            }
+        };
+
+        const handleProposeCategorization = async () => {
+            try {
+                setIsInPlaceCategorizing(true);
+                const request: QuickCategorizeUncategorizedRequest = {
+                    entryIds: Array.from(selectedEntries)
+                };
+                const response = await topicsApi.quickCategorizeUncategorized(request);
+                setCategorySuggestions(response);
+            } catch (error) {
+                console.error('Error proposing categories:', error);
+                // TODO: Show error notification
+            } finally {
+                setIsInPlaceCategorizing(false);
+            }
+        };
+
+        const handleAcceptSuggestion = async (entryId: number, topicId: number | null, topicName: string, isNew: boolean) => {
+            try {
+                // Implementation for accepting a suggestion
+                // You'll need to implement this based on your API
+                await entriesApi.updateEntry(entryId, { topic_id: topicId });
+                await fetchEntries();
+                if (onEntriesMoved) onEntriesMoved();
+                if (onTopicsChanged) onTopicsChanged();
+            } catch (error) {
+                console.error('Error accepting suggestion:', error);
+            }
+        };
+
+        const handleRejectSuggestion = (entryId: number, topicId: number | null, topicName: string, isNew: boolean) => {
+            if (!categorySuggestions) return;
+
+            // Create a new suggestions object without the rejected suggestion
+            const newSuggestions = {
+                ...categorySuggestions,
+                existing_topic_assignments: isNew 
+                    ? categorySuggestions.existing_topic_assignments 
+                    : categorySuggestions.existing_topic_assignments.map(topic => 
+                        topic.topic_id === topicId 
+                            ? {
+                                ...topic,
+                                entries: topic.entries.filter(e => e.entry_id !== entryId)
+                            }
+                            : topic
+                    ),
+                new_topic_proposals: isNew
+                    ? categorySuggestions.new_topic_proposals.map(topic =>
+                        topic.suggested_name === topicName
+                            ? {
+                                ...topic,
+                                entries: topic.entries.filter(e => e.entry_id !== entryId)
+                            }
+                            : topic
+                    )
+                    : categorySuggestions.new_topic_proposals
+            };
+
+            // Remove empty topics
+            newSuggestions.existing_topic_assignments = newSuggestions.existing_topic_assignments
+                .filter(topic => topic.entries.length > 0);
+            newSuggestions.new_topic_proposals = newSuggestions.new_topic_proposals
+                .filter(topic => topic.entries.length > 0);
+
+            setCategorySuggestions(newSuggestions);
+        };
+
+        const handleAcceptAllSuggestions = async () => {
+            try {
+                if (!categorySuggestions) return;
+
+                // Process existing topic assignments
+                const existingAssignments = categorySuggestions.existing_topic_assignments
+                    .flatMap(topic => 
+                        topic.entries
+                            .filter(entry => selectedEntries.has(entry.entry_id))
+                            .map(entry => ({ 
+                                entryId: entry.entry_id, 
+                                topicId: topic.topic_id 
+                            }))
+                    );
+
+                // Process new topic proposals
+                const newTopicAssignments = categorySuggestions.new_topic_proposals
+                    .flatMap(topic => 
+                        topic.entries
+                            .filter(entry => selectedEntries.has(entry.entry_id))
+                            .map(entry => ({ 
+                                entryId: entry.entry_id, 
+                                topicName: topic.suggested_name 
+                            }))
+                    );
+
+                // Create new topics and get their IDs
+                const newTopicIds = await Promise.all(
+                    [...new Set(newTopicAssignments.map(a => a.topicName))].map(async topicName => {
+                        const newTopic = await topicsApi.createTopic({ topic_name: topicName });
+                        return { name: topicName, id: newTopic.topic_id };
+                    })
+                );
+
+                // Update all entries
+                await Promise.all([
+                    // Update entries for existing topics
+                    ...existingAssignments.map(assignment =>
+                        entriesApi.updateEntry(assignment.entryId, { topic_id: assignment.topicId })
+                    ),
+                    // Update entries for new topics
+                    ...newTopicAssignments.map(assignment => {
+                        const topicId = newTopicIds.find(t => t.name === assignment.topicName)?.id;
+                        return entriesApi.updateEntry(assignment.entryId, { topic_id: topicId });
+                    })
+                ]);
+
+                // Refresh the UI
+                await fetchEntries();
+                if (onEntriesMoved) onEntriesMoved();
+                if (onTopicsChanged) onTopicsChanged();
+
+                // Clear suggestions and selection
+                setCategorySuggestions(null);
+                setSelectedEntries(new Set());
+            } catch (error) {
+                console.error('Error accepting all suggestions:', error);
+                // TODO: Show error notification
+            }
+        };
+
+        const handleClearSuggestions = () => {
+            setCategorySuggestions(null);
+        };
+
+        const handleExitTaskMode = () => {
+            setIsTaskHelpActive(false);
+            setSelectedEntries(new Set());
+        };
+
+        const handleAnalyzeTasks = async () => {
+            setIsAnalyzingTasks(true);
+            // TODO: Implement task analysis logic
+            //temporily use setTimeout to simulate a delay
+            setTimeout(() => {
+                setIsAnalyzingTasks(false);
+            }, 3000);
+        };
+
         if (isLoading) {
             return (
                 <div className="h-full w-full flex items-center justify-center">
@@ -210,31 +394,35 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
 
                     <div className="flex items-center space-x-2">
                         <button
-                            className="inline-flex items-center px-3 py-1.5 text-sm font-medium 
-                                text-gray-800 dark:text-gray-100
-                                bg-gradient-to-b from-amber-50 to-amber-100 dark:from-gray-700 dark:to-gray-800
+                            onClick={isCategorizing ? handleExitCategorizeMode : handleEnterCategorizeMode}
+                            className={`inline-flex items-center px-3 py-1.5 text-sm font-medium 
+                                ${isCategorizing 
+                                    ? 'text-amber-900 dark:text-amber-100 bg-gradient-to-b from-amber-200 to-amber-300 dark:from-amber-700 dark:to-amber-800 border-amber-400 dark:border-amber-600 ring-amber-400/50 dark:ring-amber-500/50'
+                                    : 'text-gray-800 dark:text-gray-100 bg-gradient-to-b from-amber-50 to-amber-100 dark:from-gray-700 dark:to-gray-800 border-amber-200 dark:border-gray-600 ring-amber-200/50 dark:ring-gray-500/50'
+                                }
                                 hover:from-amber-100 hover:to-amber-200 dark:hover:from-gray-600 dark:hover:to-gray-700
-                                border border-amber-200 dark:border-gray-600
-                                shadow-sm hover:shadow
+                                border shadow-sm hover:shadow
                                 rounded-md
                                 transition-all duration-150 ease-in-out
-                                ring-1 ring-amber-200/50 dark:ring-gray-500/50"
+                                ring-1`}
                         >
-                            <IconCategory className="w-4 h-4 mr-1.5 text-amber-600 dark:text-amber-400" />
-                            AI Categorization Help
+                            <IconCategory className={`w-4 h-4 mr-1.5 ${isCategorizing ? 'text-amber-800 dark:text-amber-300' : 'text-amber-600 dark:text-amber-400'}`} />
+                            {isCategorizing ? 'Exit Categorization Mode' : 'AI Categorization Help'}
                         </button>
                         <button
-                            className="inline-flex items-center px-3 py-1.5 text-sm font-medium 
-                                text-gray-800 dark:text-gray-100
-                                bg-gradient-to-b from-slate-50 to-slate-100 dark:from-gray-700 dark:to-gray-800
+                            className={`inline-flex items-center px-3 py-1.5 text-sm font-medium 
+                                ${isTaskHelpActive 
+                                    ? 'text-gray-700 dark:text-gray-100 bg-gradient-to-b from-gray-100 to-gray-200 dark:from-gray-600 dark:to-gray-700 border-gray-300 dark:border-gray-500 ring-gray-300/50 dark:ring-gray-400/50 shadow-inner'
+                                    : 'text-gray-800 dark:text-gray-100 bg-gradient-to-b from-slate-50 to-slate-100 dark:from-gray-700 dark:to-gray-800 border-slate-200 dark:border-gray-600 ring-slate-200/50 dark:ring-gray-500/50'
+                                }
                                 hover:from-slate-100 hover:to-slate-200 dark:hover:from-gray-600 dark:hover:to-gray-700
-                                border border-slate-200 dark:border-gray-600
-                                shadow-sm hover:shadow
+                                border shadow-sm hover:shadow
                                 rounded-md
                                 transition-all duration-150 ease-in-out
-                                ring-1 ring-slate-200/50 dark:ring-gray-500/50"
+                                ring-1`}
+                            onClick={() => setIsTaskHelpActive(!isTaskHelpActive)}
                         >
-                            <IconListCheck className="w-4 h-4 mr-1.5 text-slate-600 dark:text-slate-400" />
+                            <IconListCheck className={`w-4 h-4 mr-1.5 ${isTaskHelpActive ? 'text-gray-600 dark:text-gray-300' : 'text-slate-600 dark:text-slate-400'}`} />
                             AI Task Help
                         </button>
                     </div>
@@ -244,6 +432,31 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                 <div className="flex-1 overflow-y-auto px-12 py-4">
                     {entries.length === 0 ? (
                         <EmptyStateMessage />
+                    ) : isTaskHelpActive ? (
+                        <TaskEntryList
+                            entries={entries}
+                            selectedEntries={selectedEntries}
+                            onEntrySelect={handleEntrySelect}
+                            onSelectAll={handleSelectAll}
+                            onCancel={handleExitTaskMode}
+                            isLoading={isAnalyzingTasks}
+                            onAnalyzeTasks={handleAnalyzeTasks}
+                        />
+                    ) : isCategorizing ? (
+                        <CategorizeEntryList
+                            entries={entries}
+                            selectedEntries={selectedEntries}
+                            onEntrySelect={handleEntrySelect}
+                            onSelectAll={handleSelectAll}
+                            onCancel={handleExitCategorizeMode}
+                            categorySuggestions={categorySuggestions}
+                            onAcceptSuggestion={handleAcceptSuggestion}
+                            onRejectSuggestion={handleRejectSuggestion}
+                            isInPlaceCategorizing={isInPlaceCategorizing}
+                            onProposeCategorization={handleProposeCategorization}
+                            onAcceptAllSuggestions={handleAcceptAllSuggestions}
+                            onClearSuggestions={handleClearSuggestions}
+                        />
                     ) : (
                         <EntryList
                             entries={entries}

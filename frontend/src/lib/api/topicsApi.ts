@@ -102,9 +102,7 @@ export interface CategoryMetadata {
 }
 
 export interface QuickCategorizeUncategorizedRequest {
-    min_confidence_threshold?: number;
-    max_new_topics?: number;
-    instructions?: string;
+    entryIds: number[];
 }
 
 export interface QuickCategorizeUncategorizedResponse {

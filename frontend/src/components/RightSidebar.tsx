@@ -10,11 +10,11 @@ import TaskFacilitator from './tasks/TaskFacilitator';
 import ChatArea from './chat/ChatArea';
 import CategorizeAssistant from './categorize/CategorizeAssistant';
 
-// interface RightSidebarProps {
-//     currentTopic: Topic | UncategorizedTopic | AllTopicsTopic | null;
-//     onEntriesMoved?: () => void;
-//     onTopicsChanged?: () => void;
-// }
+interface RightSidebarProps {
+    currentTopic: Topic | UncategorizedTopic | AllTopicsTopic | null;
+    onEntriesMoved?: () => void;
+    onTopicsChanged?: () => void;
+}
 
 // type AssistantMode = 'chat' | 'categorize' | 'facilitate';
 
