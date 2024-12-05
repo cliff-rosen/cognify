@@ -26,12 +26,21 @@ export interface FacilitateOption {
     estimated_impact: string;
 }
 
+export type TaskCategory = 'plan' | 'research' | 'perform';
+
+export interface TaskCategorization {
+    categories: TaskCategory[];
+    confidence_score: number;
+    rationale: string;
+}
+
 export interface TaskAnalysis {
     entry_id: number;
     content: string;
-    facilitate_options: FacilitateOption[];
+    categorization: TaskCategorization;
     complexity_score: number;
     priority_score: number;
+    next_steps: string[];
 }
 
 export interface FacilitateAnalysisResponse {
@@ -42,6 +51,11 @@ export interface FacilitateAnalysisResponse {
         analysis_timestamp: string;
         average_complexity: number;
         average_priority: number;
+        category_distribution: {
+            plan: number;
+            research: number;
+            perform: number;
+        };
     };
 }
 

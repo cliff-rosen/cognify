@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from models import Entry, Topic
-from schemas import EntryCreate, EntryUpdate
+from schemas import EntryCreate, EntryUpdate, TaskCategory, TaskAnalysis, TaskCategorization
 import logging
 from datetime import datetime
 
@@ -222,41 +222,69 @@ async def analyze_facilitate_options(db: Session, user_id: int, entry_ids: list[
                 detail=f"Entries not found or not accessible: {missing_ids}"
             )
 
-        # For now, return a stub response
-        tasks = [
-            {
-                "entry_id": entry.entry_id,
-                "content": entry.content,
-                "facilitate_options": [
-                    {
-                        "option_type": "break_down",
-                        "description": "Break this task into smaller subtasks",
-                        "confidence_score": 0.9,
-                        "requirements": ["Task analysis", "Project management tool"],
-                        "estimated_impact": "High - Will improve task manageability"
-                    },
-                    {
-                        "option_type": "delegate",
-                        "description": "Consider delegating to team member with relevant expertise",
-                        "confidence_score": 0.8,
-                        "requirements": ["Team availability", "Clear documentation"],
-                        "estimated_impact": "Medium - Will distribute workload"
-                    }
-                ],
-                "complexity_score": 0.5,
-                "priority_score": 0.7
-            }
-            for entry in entries
-        ]
+        # Initialize category counters
+        category_counts = {
+            "plan": 0,
+            "research": 0,
+            "perform": 0
+        }
+
+        # For now, return a stub response with the new categorization
+        tasks = []
+        for entry in entries:
+            # Analyze the entry content to determine categories
+            # This is a simplified example - in production, you'd use AI to determine these
+            categories = []
+            if "plan" in entry.content.lower() or "schedule" in entry.content.lower():
+                categories.append(TaskCategory.PLAN)
+                category_counts["plan"] += 1
+            if "research" in entry.content.lower() or "find" in entry.content.lower():
+                categories.append(TaskCategory.RESEARCH)
+                category_counts["research"] += 1
+            if "write" in entry.content.lower() or "create" in entry.content.lower():
+                categories.append(TaskCategory.PERFORM)
+                category_counts["perform"] += 1
+
+            # Ensure at least one category is assigned
+            if not categories:
+                # Default to PERFORM if no clear category
+                categories = [TaskCategory.PERFORM]
+                category_counts["perform"] += 1
+
+            task_analysis = TaskAnalysis(
+                entry_id=entry.entry_id,
+                content=entry.content,
+                categorization=TaskCategorization(
+                    categories=categories,
+                    confidence_score=0.8,  # Placeholder confidence score
+                    rationale="Based on key action words and context in the task description"
+                ),
+                complexity_score=0.5,  # Placeholder complexity score
+                priority_score=0.7,  # Placeholder priority score
+                next_steps=[
+                    "Break down the task into smaller subtasks",
+                    "Identify key stakeholders and resources",
+                    "Set specific deadlines for each component"
+                ]
+            )
+            tasks.append(task_analysis)
+
+        # Calculate category distribution percentages
+        total_categories = sum(category_counts.values())
+        category_distribution = {
+            category: count / total_categories if total_categories > 0 else 0
+            for category, count in category_counts.items()
+        }
 
         return {
             "tasks": tasks,
-            "overall_summary": f"Analyzed {len(entries)} tasks for facilitation options",
+            "overall_summary": f"Analyzed {len(entries)} tasks and categorized them into plan, research, and perform categories",
             "metadata": {
                 "analyzed_entries": len(entries),
                 "analysis_timestamp": datetime.utcnow().isoformat(),
-                "average_complexity": sum(task["complexity_score"] for task in tasks) / len(tasks),
-                "average_priority": sum(task["priority_score"] for task in tasks) / len(tasks)
+                "average_complexity": sum(task.complexity_score for task in tasks) / len(tasks),
+                "average_priority": sum(task.priority_score for task in tasks) / len(tasks),
+                "category_distribution": category_distribution
             }
         }
 

@@ -1,4 +1,4 @@
-import { Entry, TaskAnalysis } from '../../lib/api/entriesApi';
+import { Entry, TaskAnalysis, TaskCategory } from '../../lib/api/entriesApi';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useState } from 'react';
 
@@ -12,6 +12,26 @@ interface TaskEntryListProps {
     loadingText?: string;
     onAnalyzeTasks: () => void;
     analysisResults?: TaskAnalysis[];
+}
+
+function TaskCategoryBadge({ category }: { category: TaskCategory }) {
+    const colors = {
+        plan: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+        research: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+        perform: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+    };
+
+    const labels = {
+        plan: 'Plan',
+        research: 'Research',
+        perform: 'Perform'
+    };
+
+    return (
+        <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[category]}`}>
+            {labels[category]}
+        </span>
+    );
 }
 
 function TaskAnalysisCard({ analysis }: { analysis: TaskAnalysis }) {
@@ -53,41 +73,48 @@ function TaskAnalysisCard({ analysis }: { analysis: TaskAnalysis }) {
                 </button>
             </div>
 
-            {/* Facilitation Options */}
+            {/* Categories */}
+            <div className="flex gap-2">
+                {analysis.categorization.categories.map((category, index) => (
+                    <TaskCategoryBadge key={index} category={category} />
+                ))}
+            </div>
+
+            {/* Expanded Details */}
             {isExpanded && (
                 <div className="space-y-4 mt-4 pl-4 border-l-2 border-blue-100 dark:border-blue-900">
-                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Facilitation Options
-                    </h4>
-                    {analysis.facilitate_options.map((option, index) => (
-                        <div key={index} className="space-y-2">
-                            <div className="flex justify-between items-start">
-                                <h5 className="text-sm font-medium text-gray-600 dark:text-gray-400 capitalize">
-                                    {option.option_type.replace('_', ' ')}
-                                </h5>
-                                <span className="text-xs text-gray-500 dark:text-gray-400">
-                                    {Math.round(option.confidence_score * 100)}% confidence
-                                </span>
-                            </div>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                                {option.description}
-                            </p>
-                            {option.requirements.length > 0 && (
-                                <div className="text-sm">
-                                    <span className="text-gray-500 dark:text-gray-400">Requirements: </span>
-                                    <span className="text-gray-600 dark:text-gray-400">
-                                        {option.requirements.join(', ')}
-                                    </span>
-                                </div>
-                            )}
-                            <div className="text-sm">
-                                <span className="text-gray-500 dark:text-gray-400">Impact: </span>
-                                <span className="text-gray-600 dark:text-gray-400">
-                                    {option.estimated_impact}
-                                </span>
-                            </div>
-                        </div>
-                    ))}
+                    {/* Rationale */}
+                    <div className="space-y-2">
+                        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Rationale
+                        </h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                            {analysis.categorization.rationale}
+                        </p>
+                    </div>
+
+                    {/* Next Steps */}
+                    <div className="space-y-2">
+                        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Next Steps
+                        </h4>
+                        <ul className="space-y-1">
+                            {analysis.next_steps.map((step, index) => (
+                                <li key={index} className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                                    {step}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+
+                    {/* Confidence Score */}
+                    <div className="text-sm">
+                        <span className="text-gray-500 dark:text-gray-400">Confidence: </span>
+                        <span className="text-gray-700 dark:text-gray-300">
+                            {Math.round(analysis.categorization.confidence_score * 100)}%
+                        </span>
+                    </div>
                 </div>
             )}
         </div>

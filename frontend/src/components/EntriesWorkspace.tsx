@@ -33,16 +33,6 @@ const EntriesWorkspace = forwardRef<EntriesWorkspaceHandle, EntriesWorkspaceProp
             }
         };
 
-        const getCurrentTopic = () => {
-            if (selectedTopic?.topic_id === ALL_TOPICS_TOPIC_ID) {
-                return AllTopicsTopicValue;
-            }
-            if (selectedTopic?.topic_id === UNCATEGORIZED_TOPIC_ID) {
-                return UncategorizedTopicValue;
-            }
-            return topics.find(t => t.topic_id === selectedTopic?.topic_id) || null;
-        };
-
         return (
             <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900">
                 {/* Main Content Area */}
@@ -91,7 +81,7 @@ const EntriesWorkspace = forwardRef<EntriesWorkspaceHandle, EntriesWorkspaceProp
                             <div className="pt-2 pr-2">
                                 <aside className="w-[500px] flex-shrink-0 border-l border-gray-200 dark:border-gray-700 overflow-y-auto h-full">
                                     <RightSidebar
-                                        currentTopic={getCurrentTopic()}
+                                        currentTopic={selectedTopic}
                                         onEntriesMoved={() => centerWorkspaceRef.current?.refreshEntries()}
                                         onTopicsChanged={refreshTopics}
                                     />

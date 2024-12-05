@@ -1,6 +1,7 @@
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from datetime import datetime
 from typing import Optional, List
+from enum import Enum
 
 ##### USER SCHEMA #####
 
@@ -296,16 +297,35 @@ class FacilitateOption(BaseModel):
         description="Estimated impact of implementing this option")
 
 
+class TaskCategory(str, Enum):
+    """Categories for task analysis"""
+    PLAN = "plan"
+    RESEARCH = "research"
+    PERFORM = "perform"
+
+
+class TaskCategorization(BaseModel):
+    """Categorization for a task"""
+    categories: List[TaskCategory] = Field(
+        description="List of categories that apply to this task")
+    confidence_score: float = Field(
+        ge=0, le=1, description="Confidence score for this categorization")
+    rationale: str = Field(
+        description="Explanation for why these categories were chosen")
+
+
 class TaskAnalysis(BaseModel):
     """Analysis for a single task entry"""
     entry_id: int = Field(description="ID of the analyzed entry")
     content: str = Field(description="Content of the entry")
-    facilitate_options: List[FacilitateOption] = Field(
-        description="List of facilitation options")
+    categorization: TaskCategorization = Field(
+        description="Task categorization details")
     complexity_score: float = Field(
         ge=0, le=1, description="Estimated complexity of the task")
     priority_score: float = Field(
         ge=0, le=1, description="Suggested priority level")
+    next_steps: List[str] = Field(
+        description="Suggested next steps for this task")
 
 
 class FacilitateAnalysisResponse(BaseModel):
@@ -313,7 +333,18 @@ class FacilitateAnalysisResponse(BaseModel):
     tasks: List[TaskAnalysis] = Field(description="List of analyzed tasks")
     overall_summary: str = Field(description="Overall summary of the analysis")
     metadata: dict = Field(
-        description="Additional metadata about the analysis")
+        description="Additional metadata about the analysis",
+        default={
+            "analyzed_entries": 0,
+            "analysis_timestamp": "",
+            "average_complexity": 0.0,
+            "average_priority": 0.0,
+            "category_distribution": {
+                "plan": 0,
+                "research": 0,
+                "perform": 0
+            }
+        })
 
     model_config = ConfigDict(from_attributes=True)
 
