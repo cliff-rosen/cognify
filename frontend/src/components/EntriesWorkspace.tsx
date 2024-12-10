@@ -1,12 +1,11 @@
 import CenterWorkspace from './CenterWorkspace'
 import RightSidebar from './RightSidebar'
 import { useState, useRef, forwardRef, useImperativeHandle } from 'react'
-import { Topic, UNCATEGORIZED_TOPIC_ID, ALL_TOPICS_TOPIC_ID, AllTopicsTopicValue, UncategorizedTopicValue, UncategorizedTopic, AllTopicsTopic } from '../lib/api/topicsApi'
+import { Topic, UncategorizedTopic, AllTopicsTopic } from '../lib/api/topicsApi'
 import { topicsApi } from '../lib/api/topicsApi'
 
 interface EntriesWorkspaceProps {
     selectedTopic: Topic | UncategorizedTopic | AllTopicsTopic;
-    topics: (Topic | UncategorizedTopic)[];
     setTopics: (topics: (Topic | UncategorizedTopic)[]) => void;
 }
 
@@ -15,7 +14,7 @@ export interface EntriesWorkspaceHandle {
 }
 
 const EntriesWorkspace = forwardRef<EntriesWorkspaceHandle, EntriesWorkspaceProps>(
-    ({ selectedTopic, topics, setTopics }, ref) => {
+    ({ selectedTopic, setTopics }, ref) => {
         const centerWorkspaceRef = useRef<{ refreshEntries: () => void } | null>(null)
         const [showRightSidebar, setShowRightSidebar] = useState(true)
 
@@ -82,8 +81,6 @@ const EntriesWorkspace = forwardRef<EntriesWorkspaceHandle, EntriesWorkspaceProp
                                 <aside className="w-[500px] flex-shrink-0 border-l border-gray-200 dark:border-gray-700 overflow-y-auto h-full">
                                     <RightSidebar
                                         currentTopic={selectedTopic}
-                                        onEntriesMoved={() => centerWorkspaceRef.current?.refreshEntries()}
-                                        onTopicsChanged={refreshTopics}
                                     />
                                 </aside>
                             </div>

@@ -99,7 +99,6 @@ function App() {
               <EntriesWorkspace
                 ref={entriesWorkspaceRef}
                 selectedTopic={selectedTopic}
-                topics={topics}
                 setTopics={setTopics}
               />
             </div>

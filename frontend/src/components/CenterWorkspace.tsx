@@ -1,5 +1,5 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react'
-import { entriesApi, Entry } from '../lib/api/entriesApi'
+import { entriesApi, Entry, TaskAnalysis } from '../lib/api/entriesApi'
 import { AllTopicsTopic, Topic, UncategorizedTopic } from '../lib/api/topicsApi'
 import { DragEvent } from 'react'
 import EntryList from './entries/EntryList'
@@ -231,14 +231,38 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
 
         const handleAcceptSuggestion = async (entryId: number, topicId: number | null, topicName: string, isNew: boolean) => {
             try {
-                // Implementation for accepting a suggestion
-                // You'll need to implement this based on your API
-                await entriesApi.updateEntry(entryId, { topic_id: topicId });
+                let finalTopicId = topicId;
+
+                // If this is a new topic, check if it already exists first
+                if (isNew) {
+                    // Get all existing topics
+                    const existingTopics = await topicsApi.getTopics();
+
+                    // Check if a topic with the same name already exists (case insensitive)
+                    const existingTopic = existingTopics.find(
+                        t => t.topic_name.toLowerCase() === topicName.toLowerCase()
+                    );
+
+                    if (existingTopic) {
+                        // Use the existing topic instead of creating a new one
+                        finalTopicId = existingTopic.topic_id;
+                    } else {
+                        // Create new topic only if it doesn't exist
+                        const newTopic = await topicsApi.createTopic({ topic_name: topicName });
+                        finalTopicId = newTopic.topic_id;
+                    }
+                }
+
+                // Update the entry with the topic ID (either existing, found, or newly created)
+                await entriesApi.updateEntry(entryId, { topic_id: finalTopicId });
+
+                // Refresh the UI
                 await fetchEntries();
                 if (onEntriesMoved) onEntriesMoved();
                 if (onTopicsChanged) onTopicsChanged();
             } catch (error) {
                 console.error('Error accepting suggestion:', error);
+                // TODO: Show error notification
             }
         };
 
@@ -248,10 +272,10 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
             // Create a new suggestions object without the rejected suggestion
             const newSuggestions = {
                 ...categorySuggestions,
-                existing_topic_assignments: isNew 
-                    ? categorySuggestions.existing_topic_assignments 
-                    : categorySuggestions.existing_topic_assignments.map(topic => 
-                        topic.topic_id === topicId 
+                existing_topic_assignments: isNew
+                    ? categorySuggestions.existing_topic_assignments
+                    : categorySuggestions.existing_topic_assignments.map(topic =>
+                        topic.topic_id === topicId
                             ? {
                                 ...topic,
                                 entries: topic.entries.filter(e => e.entry_id !== entryId)
@@ -285,23 +309,23 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
 
                 // Process existing topic assignments
                 const existingAssignments = categorySuggestions.existing_topic_assignments
-                    .flatMap(topic => 
+                    .flatMap(topic =>
                         topic.entries
                             .filter(entry => selectedEntries.has(entry.entry_id))
-                            .map(entry => ({ 
-                                entryId: entry.entry_id, 
-                                topicId: topic.topic_id 
+                            .map(entry => ({
+                                entryId: entry.entry_id,
+                                topicId: topic.topic_id
                             }))
                     );
 
                 // Process new topic proposals
                 const newTopicAssignments = categorySuggestions.new_topic_proposals
-                    .flatMap(topic => 
+                    .flatMap(topic =>
                         topic.entries
                             .filter(entry => selectedEntries.has(entry.entry_id))
-                            .map(entry => ({ 
-                                entryId: entry.entry_id, 
-                                topicName: topic.suggested_name 
+                            .map(entry => ({
+                                entryId: entry.entry_id,
+                                topicName: topic.suggested_name
                             }))
                     );
 
@@ -403,7 +427,7 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                         <button
                             onClick={isCategorizing ? handleExitCategorizeMode : handleEnterCategorizeMode}
                             className={`inline-flex items-center px-3 py-1.5 text-sm font-medium 
-                                ${isCategorizing 
+                                ${isCategorizing
                                     ? 'text-amber-900 dark:text-amber-100 bg-gradient-to-b from-amber-200 to-amber-300 dark:from-amber-700 dark:to-amber-800 border-amber-400 dark:border-amber-600 ring-amber-400/50 dark:ring-amber-500/50'
                                     : 'text-gray-800 dark:text-gray-100 bg-gradient-to-b from-amber-50 to-amber-100 dark:from-gray-700 dark:to-gray-800 border-amber-200 dark:border-gray-600 ring-amber-200/50 dark:ring-gray-500/50'
                                 }
@@ -418,7 +442,7 @@ const CenterWorkspace = forwardRef<CenterWorkspaceHandle, CenterWorkspaceProps>(
                         </button>
                         <button
                             className={`inline-flex items-center px-3 py-1.5 text-sm font-medium 
-                                ${isTaskHelpActive 
+                                ${isTaskHelpActive
                                     ? 'text-gray-700 dark:text-gray-100 bg-gradient-to-b from-gray-100 to-gray-200 dark:from-gray-600 dark:to-gray-700 border-gray-300 dark:border-gray-500 ring-gray-300/50 dark:ring-gray-400/50 shadow-inner'
                                     : 'text-gray-800 dark:text-gray-100 bg-gradient-to-b from-slate-50 to-slate-100 dark:from-gray-700 dark:to-gray-800 border-slate-200 dark:border-gray-600 ring-slate-200/50 dark:ring-gray-500/50'
                                 }
