@@ -31,6 +31,11 @@ function App() {
     setSelectedTopic(topic)
   }
 
+  const handleEntryMoved = () => {
+    console.log('App handleEntryMoved')
+    entriesWorkspaceRef.current?.refreshEntries()
+  }
+
   const handleEntryAdded = (entry: Entry) => {
     console.log('App handleEntryAdded', entry)
     console.log('App selectedTopic', selectedTopic)
@@ -84,9 +89,7 @@ function App() {
               selectedTopic={selectedTopic}
               topics={topics}
               onTopicsChange={setTopics}
-              onEntryMoved={() => {
-                entriesWorkspaceRef.current?.refreshEntries();
-              }}
+              onEntryMoved={handleEntryMoved}
               onEntryAdded={handleEntryAdded}
               onTopicCreated={handleTopicCreated}
             />

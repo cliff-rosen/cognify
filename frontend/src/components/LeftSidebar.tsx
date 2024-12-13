@@ -133,13 +133,13 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
             return
         }
 
+        let updatedTopic: Topic
         try {
-            const updatedTopic = await topicsApi.updateTopic(topicId, {
+            updatedTopic = await topicsApi.updateTopic(topicId, {
                 topic_name: editingName.trim()
             })
-
             onTopicsChange(topics.map(topic =>
-                topic.topic_id === topicId ? updatedTopic : topic
+                topic.topic_id === topicId ? {...topic, topic_name: updatedTopic.topic_name }: topic
             ))
             cancelEditing()
         } catch (error) {
